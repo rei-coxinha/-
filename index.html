@@ -3,47 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🍗 Cardápio - O Rei da Coxinha</title>
+    <meta name="theme-color" content="#111827">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="./icone.png">
+    <title>🍗 O Rei da Coxinha</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: #1a1a1a;
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-        .loading {
-            text-align: center;
-        }
-        .spinner {
-            border: 4px solid rgba(255,255,255,0.3);
-            border-top: 4px solid #fff;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        *{box-sizing:border-box}
+        html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b1020;color:#fff}
+        body{display:flex;align-items:center;justify-content:center;overflow:hidden}
+        .gate{width:min(430px,92vw);text-align:center;padding:30px 22px}
+        .logo{width:112px;height:112px;border-radius:28px;object-fit:cover;box-shadow:0 12px 40px rgba(0,0,0,.5);margin-bottom:22px}
+        h1{margin:0 0 10px;font-size:26px;font-weight:900}
+        p{margin:0 auto 24px;color:rgba(255,255,255,.72);line-height:1.55;font-size:14px}
+        .install{width:100%;padding:17px;border:0;border-radius:16px;background:linear-gradient(135deg,#1aad52,#25d366);color:#fff;font-size:16px;font-weight:900;box-shadow:0 8px 28px rgba(37,211,102,.28);cursor:pointer}
+        .install:disabled{opacity:.55;cursor:default}
+        .hint{margin-top:15px;font-size:12px;color:rgba(255,255,255,.48);line-height:1.5}
+        .loading{display:none}
+        .loading.active{display:block}
+        .spinner{width:38px;height:38px;margin:0 auto 16px;border:4px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
     </style>
 </head>
 <body>
-    <div class="loading">
-        <div class="spinner"></div>
-        <p>🍗 Carregando Cardápio...</p>
-    </div>
+    <main class="gate" id="installGate">
+        <img class="logo" src="./icone.png" alt="O Rei da Coxinha">
+        <h1>🍗 O Rei da Coxinha</h1>
+        <p>Para continuar, instale o aplicativo na tela inicial.<br>Depois da instalação, o cardápio será aberto automaticamente.</p>
+        <button class="install" id="installButton" disabled>📲 Preparando instalação...</button>
+        <div class="hint" id="installHint">Aguarde enquanto o sistema prepara a instalação.</div>
+    </main>
 
-    <script>
-        // Redirecionar pra cardápio.html
-        // Este é um wrapper que o GitHub Pages vai usar como index.html
-        window.location.replace('./cardápio.html');
-    </script>
+    <main class="gate loading" id="loadingGate">
+        <div class="spinner"></div>
+        <h1>🍗 Abrindo o aplicativo...</h1>
+    </main>
+
+<script>
+(function(){
+    const APP='./cardápio.html';
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const btn=document.getElementById('installButton');
+    const hint=document.getElementById('installHint');
+    const installGate=document.getElementById('installGate');
+    const loadingGate=document.getElementById('loadingGate');
+    let deferredPrompt=null;
+
+    function abrirApp(){
+        loadingGate.classList.add('active');
+        installGate.style.display='none';
+        const target=APP + window.location.search + window.location.hash;
+        window.location.replace(target);
+    }
+
+    // O app já está instalado: não pede novamente.
+    if(standalone){ abrirApp(); return; }
+
+    // Registra o Service Worker na raiz do PWA.
+    if('serviceWorker' in navigator){
+        navigator.serviceWorker.register('./SW-CLIENTE.js').catch(()=>{});
+    }
+
+    window.addEventListener('beforeinstallprompt', function(e){
+        e.preventDefault();
+        deferredPrompt=e;
+        btn.disabled=false;
+        btn.textContent='📲 Instalar aplicativo';
+        hint.textContent='A instalação é necessária para continuar.';
+    });
+
+    btn.addEventListener('click', async function(){
+        if(!deferredPrompt){
+            hint.textContent='Se o botão de instalação não aparecer, abra o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.';
+            return;
+        }
+        btn.disabled=true;
+        deferredPrompt.prompt();
+        const result=await deferredPrompt.userChoice;
+        deferredPrompt=null;
+        if(result.outcome==='accepted'){
+            hint.textContent='Instalação concluída. Abrindo...';
+        }else{
+            btn.disabled=false;
+            btn.textContent='📲 Instalar aplicativo';
+            hint.textContent='Você precisa instalar o aplicativo para continuar.';
+        }
+    });
+
+    window.addEventListener('appinstalled', function(){
+        deferredPrompt=null;
+        setTimeout(abrirApp,250);
+    });
+
+    // Caso o navegador não dispare beforeinstallprompt, mantém a tela de instalação.
+    setTimeout(function(){
+        if(!deferredPrompt){
+            btn.disabled=false;
+            btn.textContent='📲 Instalar aplicativo';
+            hint.textContent='Se a instalação não abrir automaticamente, use o menu do navegador para instalar o aplicativo.';
+        }
+    },3000);
+})();
+</script>
 </body>
 </html>
