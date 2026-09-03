@@ -40,68 +40,121 @@
 
 <script>
 (function(){
-    const APP='./cardápio.html';
-    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    const btn=document.getElementById('installButton');
-    const hint=document.getElementById('installHint');
-    const installGate=document.getElementById('installGate');
-    const loadingGate=document.getElementById('loadingGate');
-    let deferredPrompt=null;
+    var APP = './card\u00e1pio.html';
+    var INSTALLED_KEY = 'pwa_instalado';
 
-    function abrirApp(){
-        loadingGate.classList.add('active');
-        installGate.style.display='none';
-        const target=APP + window.location.search + window.location.hash;
-        window.location.replace(target);
+    var btn         = document.getElementById('installButton');
+    var hint        = document.getElementById('installHint');
+    var installGate = document.getElementById('installGate');
+    var loadingGate = document.getElementById('loadingGate');
+    var deferredPrompt = null;
+
+    /* Resolve destino: usa ?next= se existir, senão abre o cardápio */
+    function resolverDestino(){
+        var params = new URLSearchParams(window.location.search);
+        var next = params.get('next');
+        if(next){
+            // next já é um path/URL relativo codificado
+            return decodeURIComponent(next);
+        }
+        return APP;
     }
 
-    // O app já está instalado: não pede novamente.
-    if(standalone){ abrirApp(); return; }
+    /* Abre o app imediatamente */
+    function abrirApp(){
+        loadingGate.classList.add('active');
+        installGate.style.display = 'none';
+        window.location.replace(resolverDestino());
+    }
 
-    // Registra o Service Worker na raiz do PWA.
+    /*
+     * verificarInstalacao()
+     * Roda ANTES de qualquer outra coisa, independente da URL.
+     * Ordem de prioridade:
+     *   1. display-mode standalone  → está rodando como PWA instalado
+     *   2. localStorage flag        → foi instalado antes (funciona com URL suja)
+     *   3. getInstalledRelatedApps  → API nativa Chrome Android (assíncrona)
+     */
+    function verificarInstalacao(){
+        /* 1. Modo standalone */
+        var standalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+
+        if(standalone){
+            localStorage.setItem(INSTALLED_KEY, '1');
+            abrirApp();
+            return true;
+        }
+
+        /* 2. Flag de instalação anterior */
+        if(localStorage.getItem(INSTALLED_KEY) === '1'){
+            abrirApp();
+            return true;
+        }
+
+        /* 3. API nativa (assíncrona; não bloqueia o fluxo) */
+        if(navigator.getInstalledRelatedApps){
+            navigator.getInstalledRelatedApps().then(function(apps){
+                if(apps && apps.length > 0){
+                    localStorage.setItem(INSTALLED_KEY, '1');
+                    abrirApp();
+                }
+            }).catch(function(){});
+        }
+
+        return false;
+    }
+
+    /* Executa a verificação imediatamente */
+    if(verificarInstalacao()) return;
+
+    /* A partir daqui só chega se o app NÃO estiver instalado */
+
     if('serviceWorker' in navigator){
-        navigator.serviceWorker.register('./SW-CLIENTE.js').catch(()=>{});
+        navigator.serviceWorker.register('./SW-CLIENTE.js').catch(function(){});
     }
 
     window.addEventListener('beforeinstallprompt', function(e){
         e.preventDefault();
-        deferredPrompt=e;
-        btn.disabled=false;
-        btn.textContent='📲 Instalar aplicativo';
-        hint.textContent='A instalação é necessária para continuar.';
+        deferredPrompt = e;
+        btn.disabled = false;
+        btn.textContent = '\uD83D\uDCF2 Instalar aplicativo';
+        hint.textContent = 'A instala\u00e7\u00e3o \u00e9 necess\u00e1ria para continuar.';
     });
 
     btn.addEventListener('click', async function(){
         if(!deferredPrompt){
-            hint.textContent='Se o botão de instalação não aparecer, abra o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.';
+            hint.textContent = 'Se o bot\u00e3o de instala\u00e7\u00e3o n\u00e3o aparecer, abra o menu do navegador e escolha \u201cInstalar aplicativo\u201d ou \u201cAdicionar \u00e0 tela inicial\u201d.';
             return;
         }
-        btn.disabled=true;
+        btn.disabled = true;
         deferredPrompt.prompt();
-        const result=await deferredPrompt.userChoice;
-        deferredPrompt=null;
-        if(result.outcome==='accepted'){
-            hint.textContent='Instalação concluída. Abrindo...';
-        }else{
-            btn.disabled=false;
-            btn.textContent='📲 Instalar aplicativo';
-            hint.textContent='Você precisa instalar o aplicativo para continuar.';
+        var result = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if(result.outcome === 'accepted'){
+            hint.textContent = 'Instala\u00e7\u00e3o conclu\u00edda. Abrindo...';
+        } else {
+            btn.disabled = false;
+            btn.textContent = '\uD83D\uDCF2 Instalar aplicativo';
+            hint.textContent = 'Voc\u00ea precisa instalar o aplicativo para continuar.';
         }
     });
 
     window.addEventListener('appinstalled', function(){
-        deferredPrompt=null;
-        setTimeout(abrirApp,250);
+        deferredPrompt = null;
+        localStorage.setItem(INSTALLED_KEY, '1');
+        setTimeout(abrirApp, 250);
     });
 
-    // Caso o navegador não dispare beforeinstallprompt, mantém a tela de instalação.
+    /* Fallback: se beforeinstallprompt não disparar em 3 s */
     setTimeout(function(){
-        if(!deferredPrompt){
-            btn.disabled=false;
-            btn.textContent='📲 Instalar aplicativo';
-            hint.textContent='Se a instalação não abrir automaticamente, use o menu do navegador para instalar o aplicativo.';
+        if(!deferredPrompt && btn.disabled){
+            btn.disabled = false;
+            btn.textContent = '\uD83D\uDCF2 Instalar aplicativo';
+            hint.textContent = 'Se a instala\u00e7\u00e3o n\u00e3o abrir automaticamente, use o menu do navegador para instalar o aplicativo.';
         }
-    },3000);
+    }, 3000);
 })();
 </script>
 </body>
