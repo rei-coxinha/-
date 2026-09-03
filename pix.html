@@ -924,7 +924,7 @@ async function confirmarPagamento() {
 
     // ADM apenas visualiza
     if (user.phone === ADM_PHONE) {
-        const pixURL = 'https://jefferson8564.github.io/dino-i.a/' + window.location.search;
+        const pixURL = './pix.html' + window.location.search;
         setPixStatus('', '👁️ Modo administrador — só visualização',
             `<button onclick="window.open('${pixURL}','_blank')" style="width:100%;padding:13px;background:linear-gradient(135deg,#c75b24,#a84a1b);color:white;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 6px 20px rgba(199,91,36,0.4);">🤖 Enviar para o Dino</button>`);
         return;
