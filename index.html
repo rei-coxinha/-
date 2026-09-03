@@ -3,165 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0b0b">
+<meta name="theme-color" content="#080808">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icone.png">
 <link rel="apple-touch-icon" href="./icone.png">
 <title>O Rei da Coxinha</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:#050505;color:#fff}
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;overflow:hidden}
-.bg{position:fixed;inset:0;background:radial-gradient(circle at 50% 15%,rgba(255,190,20,.16),transparent 35%),radial-gradient(circle at 50% 90%,rgba(255,130,0,.08),transparent 38%);pointer-events:none}
-.card{position:relative;width:min(450px,94vw);padding:30px 22px 24px;text-align:center;border:1px solid rgba(255,190,20,.32);border-radius:28px;background:linear-gradient(145deg,#191919,#080808);box-shadow:0 25px 70px rgba(0,0,0,.65),0 0 45px rgba(255,170,0,.08);overflow:hidden}
-.shine{position:absolute;top:-130px;left:-180px;width:80px;height:500px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);transform:rotate(23deg);animation:shine 4.5s ease-in-out infinite}
-.logo{width:108px;height:108px;border-radius:25px;object-fit:cover;box-shadow:0 10px 35px rgba(0,0,0,.55);animation:float 2.5s ease-in-out infinite}
-h1{font-size:26px;margin:17px 0 8px;font-weight:900}h1 span{color:#ffc400}.sub{color:#aaa;font-size:13px;line-height:1.55;margin:0 auto 22px}
-.badge{display:inline-block;padding:8px 13px;border:1px solid rgba(255,196,0,.35);border-radius:999px;color:#ffd33d;background:rgba(255,190,0,.08);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.8px}
-.title{font-size:20px;font-weight:900;margin:18px 0 8px}.desc{color:#c9c9c9;font-size:13px;line-height:1.6;margin:0 0 20px}
-.install{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(180deg,#ffd02b,#e99b00);color:#171000;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 10px 28px rgba(230,150,0,.2)}
-.install:disabled{opacity:.6;cursor:default}.hint{font-size:11px;color:#777;line-height:1.5;margin-top:13px}.loading{display:none}.loading.active{display:block}.spinner{width:40px;height:40px;margin:0 auto 16px;border:4px solid rgba(255,255,255,.14);border-top-color:#ffc400;border-radius:50%;animation:spin .75s linear infinite}
-.route{font-size:11px;color:#555;margin-top:12px;word-break:break-all}
-@keyframes spin{to{transform:rotate(360deg)}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}@keyframes shine{0%,12%{left:-180px;opacity:0}22%{opacity:1}50%,100%{left:650px;opacity:0}}
+*{box-sizing:border-box}html,body{margin:0;width:100%;min-height:100%;font-family:Inter,Arial,sans-serif;background:#050505;color:#fff}body{min-height:100vh;display:grid;place-items:center;overflow:hidden;padding:18px}.bg{position:fixed;inset:0;background:radial-gradient(circle at 50% 25%,rgba(255,193,7,.14),transparent 32%),radial-gradient(circle at 50% 85%,rgba(255,132,0,.09),transparent 38%)}.orb{position:fixed;width:260px;height:260px;border-radius:50%;border:1px solid rgba(255,193,7,.10);animation:orb 7s ease-in-out infinite;pointer-events:none}.orb:before,.orb:after{content:"";position:absolute;inset:25px;border:1px solid rgba(255,193,7,.07);border-radius:50%}.orb:after{inset:55px}.card{position:relative;width:min(420px,94vw);padding:34px 24px 28px;text-align:center;border:1px solid rgba(255,193,7,.32);border-radius:30px;background:linear-gradient(145deg,rgba(27,27,27,.97),rgba(7,7,7,.98));box-shadow:0 28px 80px rgba(0,0,0,.72),0 0 45px rgba(255,174,0,.07);overflow:hidden}.card:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 25%,rgba(255,255,255,.055) 48%,transparent 65%);transform:translateX(-120%);animation:sweep 4.8s ease-in-out infinite;pointer-events:none}.logo{position:relative;width:112px;height:112px;border-radius:27px;object-fit:cover;box-shadow:0 14px 40px rgba(0,0,0,.62);animation:float 3s ease-in-out infinite}.ring{position:absolute;top:26px;left:50%;width:128px;height:128px;margin-left:-64px;border:1px solid rgba(255,193,7,.25);border-radius:34px;animation:pulse 2.8s ease-out infinite;pointer-events:none}h1{position:relative;font-size:27px;line-height:1.1;margin:21px 0 7px;font-weight:900}h1 span{color:#ffc107}.message{position:relative;margin:0;color:#aaa;font-size:14px;line-height:1.55}.badge{display:inline-flex;align-items:center;gap:8px;margin-top:24px;padding:8px 14px;border:1px solid rgba(255,193,7,.34);border-radius:999px;color:#ffd54f;background:rgba(255,193,7,.07);font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase}.loader{position:relative;height:4px;margin:27px auto 0;width:170px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}.loader i{display:block;width:55%;height:100%;border-radius:99px;background:linear-gradient(90deg,transparent,#ffc107,#fff0a8,#ffc107,transparent);animation:load 1.7s ease-in-out infinite}.status{position:relative;margin-top:13px;color:#777;font-size:11px;min-height:16px}.install{display:none;width:100%;margin-top:20px;border:0;border-radius:15px;padding:15px;background:linear-gradient(180deg,#ffd32a,#ed9f00);color:#171000;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 12px 30px rgba(230,150,0,.22)}.install.show{display:block}.install:disabled{opacity:.65}.manual{display:none;margin-top:10px;color:#777;font-size:10px;line-height:1.5}.manual.show{display:block}.route{position:relative;margin-top:15px;color:#3f3f3f;font-size:9px}.loading{display:none}.loading.show{display:grid;place-items:center}.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.12);border-top-color:#ffc107;border-radius:50%;animation:spin .7s linear infinite;margin:auto}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}@keyframes pulse{0%{transform:scale(.86);opacity:0}35%{opacity:.7}100%{transform:scale(1.12);opacity:0}}@keyframes sweep{0%,15%{transform:translateX(-120%)}48%,100%{transform:translateX(120%)}}@keyframes load{0%{transform:translateX(-130%)}100%{transform:translateX(310%)}}@keyframes orb{0%,100%{transform:scale(.95);opacity:.35}50%{transform:scale(1.08);opacity:.65}}@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-<div class="bg"></div>
-<main class="card" id="installGate">
-  <div class="shine"></div>
+<div class="bg"></div><div class="orb"></div>
+<main class="card" id="gate">
+  <div class="ring"></div>
   <img class="logo" src="./icone.png" alt="O Rei da Coxinha">
   <h1>O Rei da <span>Coxinha</span></h1>
-  <p class="sub">O aplicativo oficial reúne o cardápio e as demais funções do sistema em um único PWA.</p>
-  <div class="badge">📲 Instalação necessária</div>
-  <div class="title">Instale o aplicativo para continuar</div>
-  <p class="desc">O sistema identificou que este aparelho ainda não está usando o aplicativo instalado. A instalação é necessária antes de abrir qualquer função solicitada, seja o cardápio, pedidos, Pix, jogos ou outra rota do sistema.</p>
-  <button class="install" id="installButton" disabled>Preparando instalação...</button>
-  <div class="hint" id="installHint">Aguarde enquanto preparamos a instalação.</div>
-  <div class="route" id="routeInfo"></div>
+  <p class="message">Uma nova versão do aplicativo está chegando.</p>
+  <div class="badge">✦ NOVA ATUALIZAÇÃO</div>
+  <div class="loader"><i></i></div>
+  <div class="status" id="status">Preparando o novo sistema...</div>
+  <button class="install" id="install">Instalar aplicativo</button>
+  <div class="manual" id="manual">Se o botão não aparecer, use o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.</div>
+  <div class="route" id="route"></div>
 </main>
-
-<main class="card loading" id="loadingGate">
-  <div class="spinner"></div>
-  <h1>Abrindo o <span>aplicativo...</span></h1>
-  <p class="sub">Preparando a função solicitada.</p>
-</main>
-
+<main class="card loading" id="loading"><div><div class="spinner"></div><h1>Abrindo o <span>aplicativo...</span></h1></div></main>
 <script>
-(() => {
-  'use strict';
-
-  const routes = {
-    '': 'cardápio.html',
-    'cardapio': 'cardápio.html',
-    'cardápio': 'cardápio.html',
-    'itens': 'itens.html',
-    'pix': 'pix.html',
-    'jogos': 'jogos.html'
-  };
-
-  function getRouteKey() {
-    let path = window.location.pathname.replace(/\/+$/, '');
-    // GitHub Pages do projeto: /-/
-    if (path === '/-' || path === '') return '';
-    if (path.startsWith('/-/')) path = path.slice(3);
-    else path = path.replace(/^\/+/, '');
-    path = path.replace(/\.html$/i, '').replace(/^\/+|\/+$/g, '').toLowerCase();
-    return path;
-  }
-
-  const key = getRouteKey();
-  const destination = routes[key] || routes[''];
-  const query = window.location.search;
-  const hash = window.location.hash;
-  const target = './' + destination + query + hash;
-
-  const installGate = document.getElementById('installGate');
-  const loadingGate = document.getElementById('loadingGate');
-  const btn = document.getElementById('installButton');
-  const hint = document.getElementById('installHint');
-  document.getElementById('routeInfo').textContent = 'Destino: ' + destination;
-
-  let deferredPrompt = null;
-  let encaminhando = false;
-
-  function isInstalled() {
-    return window.matchMedia('(display-mode: standalone)').matches ||
-           window.matchMedia('(display-mode: fullscreen)').matches ||
-           window.navigator.standalone === true;
-  }
-
-  function abrirDestino() {
-    if (encaminhando) return;
-    encaminhando = true;
-    installGate.style.display = 'none';
-    loadingGate.classList.add('active');
-    window.location.replace(target);
-  }
-
-  // REGRA PRINCIPAL: primeiro verifica instalação, depois decide a rota.
-  // Isso vale para cardápio, itens, Pix, jogos e qualquer outra rota conhecida.
-  if (isInstalled()) {
-    abrirDestino();
-    return;
-  }
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./SW-CLIENTE.js', {scope:'./'}).catch(()=>{});
-  }
-
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();
-    deferredPrompt = e;
-    btn.disabled = false;
-    btn.textContent = '📲 Instalar aplicativo';
-    hint.textContent = 'Toque no botão para instalar. Depois da instalação, a função solicitada será aberta automaticamente.';
-  });
-
-  btn.addEventListener('click', async () => {
-    if (!deferredPrompt) {
-      hint.textContent = 'A instalação automática não está disponível neste navegador. Use o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.';
-      return;
-    }
-    btn.disabled = true;
-    deferredPrompt.prompt();
-    try {
-      const result = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      if (result.outcome === 'accepted') {
-        hint.textContent = 'Instalação aceita. Finalizando e abrindo...';
-      } else {
-        btn.disabled = false;
-        btn.textContent = '📲 Instalar aplicativo';
-        hint.textContent = 'A instalação é necessária para continuar.';
-      }
-    } catch (_) {
-      deferredPrompt = null;
-      btn.disabled = false;
-      btn.textContent = '📲 Instalar aplicativo';
-    }
-  });
-
-  window.addEventListener('appinstalled', () => {
-    deferredPrompt = null;
-    setTimeout(() => {
-      if (isInstalled()) abrirDestino();
-    }, 150);
-  });
-
-  // Detecta instalação manual pelo menu do navegador, mesmo que appinstalled não dispare.
-  const watcher = setInterval(() => {
-    if (isInstalled()) {
-      clearInterval(watcher);
-      abrirDestino();
-    }
-  }, 500);
-
-  setTimeout(() => {
-    if (!deferredPrompt && !isInstalled()) {
-      btn.disabled = false;
-      btn.textContent = '📲 Instalar aplicativo';
-      hint.textContent = 'Se a janela não abrir, use o menu do navegador para instalar o aplicativo. Nenhuma função será aberta antes da instalação.';
-    }
-  }, 3000);
+(()=>{
+'use strict';
+const routes={'':'cardápio.html','cardapio':'cardápio.html','cardápio':'cardápio.html','itens':'itens.html','pix':'pix.html','jogos':'jogos.html'};
+function routeKey(){let p=location.pathname.replace(/\/+$/,'');const base=location.origin+'/-/';if(p==='/-/'||p==='')return '';if(p.startsWith('/-/'))p=p.slice(3);else p=p.replace(/^\/+/, '');return p.replace(/\.html$/i,'').replace(/^\/+|\/+$/g,'').toLowerCase()}
+const key=routeKey(),destination=routes[key]||routes[''];
+const target=new URL('./'+destination,location.origin+'/-/');target.search=location.search;target.hash=location.hash;
+document.getElementById('route').textContent='';
+const gate=document.getElementById('gate'),loading=document.getElementById('loading'),btn=document.getElementById('install'),status=document.getElementById('status'),manual=document.getElementById('manual');let deferred=null,done=false;
+function installed(){return matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||navigator.standalone===true}
+function go(){if(done)return;done=true;gate.style.display='none';loading.classList.add('show');location.replace(target.href)}
+if(installed()){go();return}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./SW-CLIENTE.js',{scope:'./'}).catch(()=>{});
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;btn.classList.add('show');btn.textContent='📲 Instalar aplicativo';status.textContent='Toque para continuar';});
+btn.addEventListener('click',async()=>{if(!deferred){manual.classList.add('show');status.textContent='Instalação disponível pelo menu do navegador';return}btn.disabled=true;deferred.prompt();try{const r=await deferred.userChoice;if(r.outcome==='accepted'){status.textContent='Instalando...'}else{btn.disabled=false;status.textContent='A instalação é necessária para continuar'}}catch(e){btn.disabled=false}});
+addEventListener('appinstalled',()=>{deferred=null;setTimeout(()=>{if(installed())go()},250)});
+const watcher=setInterval(()=>{if(installed()){clearInterval(watcher);go()}},400);
+setTimeout(()=>{if(!deferred&&!installed()){btn.classList.add('show');btn.textContent='📲 Instalar aplicativo';manual.classList.add('show');status.textContent='Instale pelo menu do navegador para continuar'}},2200);
 })();
 </script>
 </body>
