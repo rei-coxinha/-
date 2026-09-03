@@ -92,11 +92,6 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeSlide { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes pulseGlow {
-            0%   { box-shadow: 0 6px 18px var(--glow-cor, rgba(255,255,255,0.3)); }
-            50%  { box-shadow: 0 6px 30px var(--glow-cor, rgba(255,255,255,0.3)), 0 0 0 6px var(--glow-cor-fraca, rgba(255,255,255,0.08)); }
-            100% { box-shadow: 0 6px 18px var(--glow-cor, rgba(255,255,255,0.3)); }
-        }
 
         /* ===== LOGIN v3 (luz dramática / Syne) ===== */
         @keyframes loginBreathe {
@@ -2970,7 +2965,7 @@ function fecharPainelControle() {
             </div>
 
             <!-- CARD: Jogos 🎮 -->
-            <div onclick="window.open('./jogos.html', '_blank')" 
+            <div onclick="window.location.href='./jogos.html'" 
                 ontouchstart="this.style.transform='scale(0.95)';this.style.boxShadow='0 2px 8px rgba(255,107,107,0.3)'"
                 ontouchend="this.style.transform='scale(1)';this.style.boxShadow='0 6px 24px rgba(255,107,107,0.15)'"
                 style="cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.15s,box-shadow 0.15s;
@@ -3095,18 +3090,15 @@ function fecharPainelControle() {
 function _fmtData(iso) {
     if (!iso) return '—';
     const dt = horasBRT(new Date(iso));
-    const dia = String(dt.getDate()).padStart(2,'0');
-    const mes = String(dt.getMonth() + 1).padStart(2,'0');
-    const ano = String(dt.getFullYear()).slice(-2);
-    return `${dia}/${mes}/${ano}`;
-}
-
-function _fmtHora(iso) {
-    if (!iso) return '';
-    const dt = horasBRT(new Date(iso));
-    const hora = String(dt.getHours()).padStart(2,'0');
-    const min  = String(dt.getMinutes()).padStart(2,'0');
-    return `${hora}:${min}`;
+    const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const diaSem = dias[dt.getDay()];
+    const dia    = String(dt.getDate()).padStart(2,'0');
+    const mes    = meses[dt.getMonth()];
+    const ano    = dt.getFullYear();
+    const hora   = String(dt.getHours()).padStart(2,'0');
+    const min    = String(dt.getMinutes()).padStart(2,'0');
+    return `${diaSem}, ${dia} ${mes} ${ano} · ${hora}:${min}`;
 }
 
 async function renderHistoricoSaldo() {
@@ -3169,50 +3161,37 @@ async function renderHistoricoSaldo() {
         const isReembolso = titulo.includes('Reembolso') || titulo.includes('💰 Reembolso');
         const isCancelado = titulo.includes('Cancelado') || titulo.includes('❌');
         const isPagamento = titulo.includes('Pagamento') || titulo.includes('👑');
-        const isNovoPedido = titulo.includes('novo Pedido') || titulo.includes('👩🏼‍💻');
-        const isConfirmado = titulo.includes('✅') || titulo.includes('Confirmado');
 
-        // Extrai o emoji original do título (mantém o emoji real vindo do banco)
-        const emojiMatch = titulo.match(/^\s*(\p{Extended_Pictographic}(?:\u200d\p{Extended_Pictographic})*(?:\uFE0F)?)/u);
-        const emojiOriginal = emojiMatch ? emojiMatch[1] : null;
-
-        let icone = emojiOriginal || '🔔';
+        let icone = '🔔';
         let cardBg = 'rgba(255,255,255,0.06)';
         let cardBorda = 'rgba(255,255,255,0.12)';
         let iconeBg = '#555';
         let badge = 'NOVO';
         let badgeCor = '#555';
 
-        if (isCancelado) {
-            // ❌ vermelho
-            cardBg = 'rgba(231,76,60,0.12)';
-            cardBorda = 'rgba(231,76,60,0.35)';
-            iconeBg = '#e74c3c';
-            badge = 'CANCELADO';
-            badgeCor = '#e74c3c';
-        } else if (isReembolso) {
-            // 💰 verde-dinheiro
-            cardBg = 'rgba(46,204,113,0.12)';
-            cardBorda = 'rgba(46,204,113,0.35)';
-            iconeBg = '#2ecc71';
-            badge = 'REEMBOLSO';
-            badgeCor = '#2ecc71';
+        if (isReembolso || isCancelado) {
+            icone = '♻️';
+            cardBg = 'rgba(243,156,18,0.12)';
+            cardBorda = 'rgba(243,156,18,0.35)';
+            iconeBg = '#f39c12';
+            badge = isCancelado ? 'CANCELADO' : 'REEMBOLSO';
+            badgeCor = '#f39c12';
         } else if (isPagamento) {
-            // 👑 dourado
+            icone = '👑';
             cardBg = 'rgba(255,215,0,0.10)';
             cardBorda = 'rgba(255,215,0,0.30)';
             iconeBg = '#f1c40f';
             badge = 'PAGO';
             badgeCor = '#f1c40f';
-        } else if (isConfirmado) {
-            // ✅ verde-whatsapp
+        } else if (titulo.includes('✅') || titulo.includes('Confirmado')) {
+            icone = '✅';
             cardBg = 'rgba(37,211,102,0.12)';
             cardBorda = 'rgba(37,211,102,0.35)';
             iconeBg = '#25d366';
             badge = 'CONFIRMADO';
             badgeCor = '#25d366';
-        } else if (isNovoPedido) {
-            // 👩🏼‍💻 azul
+        } else if (titulo.includes('novo Pedido') || titulo.includes('👩🏼‍💻')) {
+            icone = '🛒';
             cardBg = 'rgba(0,153,255,0.10)';
             cardBorda = 'rgba(0,153,255,0.30)';
             iconeBg = '#0099ff';
@@ -3310,18 +3289,14 @@ async function renderHistoricoSaldo() {
                 background:linear-gradient(135deg,${item.iconeBg},${item.iconeBg}cc);
                 display:flex; align-items:center; justify-content:center;
                 font-size:24px;
-                --glow-cor: ${item.iconeBg}88;
-                --glow-cor-fraca: ${item.iconeBg}22;
-                animation: pulseGlow 2.4s ease-in-out ${idx * 0.15}s infinite;
                 box-shadow:0 6px 18px ${item.iconeBg}55;
             ">${item.icone}</div>
             <div style="flex:1;min-width:0;">
                 <div style="font-size:15px;font-weight:900;color:#ffffff;margin-bottom:4px;letter-spacing:-0.2px;text-shadow:0 1px 8px rgba(0,0,0,0.6),0 0 20px rgba(255,255,255,0.15);">${item.titulo}</div>
-                ${item.sub ? `<div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:4px;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;text-shadow:0 1px 4px rgba(0,0,0,0.5);">${item.sub}</div>` : ''}
+                <div style="font-size:12px;color:rgba(255,255,255,0.75);display:flex;align-items:center;gap:4px;text-shadow:0 1px 4px rgba(0,0,0,0.5);">🕐 ${_fmtData(item.data)}</div>
+                ${item.sub ? `<div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,0.5);">${item.sub}</div>` : ''}
             </div>
-            <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-                <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.65);text-shadow:0 1px 4px rgba(0,0,0,0.5);">📅 ${_fmtData(item.data)}</div>
-                <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.65);text-shadow:0 1px 4px rgba(0,0,0,0.5);">🕐 ${_fmtHora(item.data)}</div>
+            <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
                 <div style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;color:white;background:${item.badgeCor};letter-spacing:0.5px;box-shadow:0 2px 8px ${item.badgeCor}66;text-shadow:0 1px 4px rgba(0,0,0,0.4);">${item.badge}</div>
             </div>
         `;
