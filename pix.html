@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Pagamento PIX 💸</title>
+    <link rel="icon" href="icone.png">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            min-height: 100vh;
+            background: #0d0508;
+            overflow: hidden;
+        }
+
+        /* ── TELAS ── */
+        .tela {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 24px; gap: 0;
+            transition: opacity 0.35s;
+        }
+        .tela.oculta { opacity: 0; pointer-events: none; }
+
+        /* ── LOADING ── */
+        #telaLoading { background: #0d0508; z-index: 10; }
+        .load-logo { font-size: 64px; animation: pulse 1.2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.1);} }
+
+        /* ── LOGIN ── */
+        #telaLogin {
+            background: #0d0508;
+            overflow-y: auto;
+        }
+        .orb {
+            position: absolute; border-radius: 50%;
+            pointer-events: none;
+        }
+        .orb1 {
+            width: 320px; height: 320px; top: -80px; left: -80px;
+            background: radial-gradient(circle, rgba(199,91,36,0.45) 0%, transparent 70%);
+            animation: orbFloat1 9s ease-in-out infinite;
+        }
+        .orb2 {
+            width: 240px; height: 240px; bottom: -50px; right: -50px;
+            background: radial-gradient(circle, rgba(241,196,15,0.25) 0%, transparent 70%);
+            animation: orbFloat2 11s ease-in-out infinite;
+        }
+        @keyframes orbFloat1 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(20px,-15px);} }
+        @keyframes orbFloat2 { 0%,100%{transform:translate(0,0);} 50%{transform:translate(-15px,20px);} }
+
+        .login-card {
+            position: relative; z-index: 2;
+            width: 100%; max-width: 360px;
+            animation: cardIn 0.6s cubic-bezier(0.34,1.2,0.64,1) both;
+        }
+        @keyframes cardIn {
+            from { opacity:0; transform:translateY(40px) scale(0.95); }
+            to   { opacity:1; transform:translateY(0) scale(1); }
+        }
+
+        .login-hero { text-align: center; margin-bottom: 28px; }
+        .login-logo {
+            width: 100px; height: 100px; object-fit: contain;
+            filter: drop-shadow(0 0 24px rgba(255,140,60,0.7));
+            animation: logoFloat 3.5s ease-in-out infinite;
+            margin-bottom: 14px;
+        }
+        @keyframes logoFloat { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-12px);} }
+        .login-brand { font-size: 26px; font-weight: 900; color: white; line-height: 1.1; }
+        .login-brand span {
+            background: linear-gradient(135deg, #ffd700, #ff9500, #ff6b00);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .login-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 5px; font-weight: 500; }
+
+        .login-box {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px; padding: 24px;
+        }
+
+        .field-label {
+            font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4);
+            text-transform: uppercase; letter-spacing: 1.5px;
+            display: block; margin-bottom: 8px;
+        }
+        .field-input {
+            width: 100%; padding: 15px 18px;
+            background: rgba(255,255,255,0.07);
+            border: 1.5px solid rgba(255,255,255,0.12);
+            border-radius: 14px; margin-bottom: 14px;
+            font-size: 16px; font-weight: 500;
+            color: white; outline: none;
+            -webkit-appearance: none;
+            transition: border-color 0.25s, box-shadow 0.25s;
+        }
+        .field-input::placeholder { color: rgba(255,255,255,0.25); }
+        .field-input:focus {
+            border-color: rgba(255,150,50,0.7);
+            box-shadow: 0 0 0 3px rgba(199,91,36,0.2);
+        }
+        .prefix-wrap { position: relative; display: flex; align-items: center; margin-bottom: 14px; }
+        .prefix-wrap .prefix {
+            position: absolute; left: 18px;
+            font-weight: 700; color: rgba(255,160,50,0.9); font-size: 15px; pointer-events: none;
+        }
+        .prefix-wrap input { padding-left: 72px !important; margin-bottom: 0; }
+
+        #nameBox { display: none; }
+
+        #loginError {
+            background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3);
+            border-radius: 12px; padding: 10px 14px;
+            color: #ff6b6b; font-size: 13px; font-weight: 600;
+            margin-bottom: 12px; display: none;
+        }
+
+        .btn-entrar {
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, #e8732a, #c75b24, #a84a1b);
+            color: white; border: none; border-radius: 16px;
+            font-size: 16px; font-weight: 800; cursor: pointer;
+            box-shadow: 0 8px 28px rgba(199,91,36,0.45);
+            transition: transform 0.15s;
+            position: relative; overflow: hidden;
+        }
+        .btn-entrar::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+            animation: shimmer 2.5s linear infinite;
+        }
+        @keyframes shimmer { 0%{background-position:-200% center;} 100%{background-position:200% center;} }
+        .btn-entrar:active { transform: scale(0.97); }
+        .btn-entrar:disabled { opacity: 0.65; cursor: not-allowed; }
+
+        /* ── CABEÇALHO DO USUÁRIO LOGADO ── */
+        .user-header {
+            position: fixed; top: 0; left: 0; right: 0;
+            z-index: 20;
+            background: rgba(13,5,8,0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 12px 20px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .user-header-avatar {
+            width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, #e8732a, #c75b24);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; font-weight: 900; color: white;
+        }
+        .user-header-info { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+        .user-header-name { font-size: 14px; font-weight: 800; color: white; }
+        .user-header-debt-label {
+            font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.35);
+            text-transform: uppercase; letter-spacing: 1.2px;
+        }
+        .user-header-debt-valor { font-size: 13px; font-weight: 800; color: #f39c12; }
+
+        .header-stats {
+            display: flex; flex-direction: row; gap: 8px;
+            align-items: center;
+        }
+        .header-stat-card {
+            display: flex; flex-direction: column;
+            align-items: center; gap: 2px;
+            padding: 6px 10px;
+            border-radius: 12px;
+            min-width: 54px;
+        }
+        .ticket-card {
+            background: rgba(220, 80, 60, 0.15);
+            border: 1.5px solid rgba(220, 80, 60, 0.45);
+        }
+        .diamante-card {
+            background: rgba(60, 140, 230, 0.15);
+            border: 1.5px solid rgba(60, 140, 230, 0.45);
+        }
+        .header-stat-icon { font-size: 16px; line-height: 1; }
+        .header-stat-val  { font-size: 12px; font-weight: 900; color: white; line-height: 1; }
+
+        /* ── COMPROVANTE (estilos mantidos por compatibilidade) ── */
+            background: #0d0508;
+            overflow-y: auto;
+            z-index: 5;
+        }
+        .comp-card {
+            position: relative; z-index: 2;
+            width: 100%; max-width: 360px;
+            animation: cardIn 0.6s cubic-bezier(0.34,1.2,0.64,1) both;
+        }
+
+        .comp-header { text-align: center; margin-bottom: 20px; }
+        .comp-title { font-size: 24px; font-weight: 900; color: white; }
+
+        .comp-box {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px; padding: 24px;
+            margin-bottom: 16px;
+        }
+
+        .comp-row {
+            display: flex; flex-direction: column;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .comp-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .comp-row:first-child { padding-top: 0; }
+
+        .comp-row-label {
+            font-size: 10px; font-weight: 700;
+            color: rgba(255,255,255,0.35);
+            text-transform: uppercase; letter-spacing: 1.5px;
+            margin-bottom: 3px;
+        }
+        .comp-row-value {
+            font-size: 15px; font-weight: 700; color: white;
+        }
+        .comp-valor-big {
+            font-size: 28px; font-weight: 900;
+            background: linear-gradient(135deg, #25d366, #1aad52);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+
+        .comp-cliente-box {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px; padding: 16px 18px;
+            margin-bottom: 16px;
+            display: flex; align-items: center; gap: 14px;
+        }
+        .comp-avatar {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: linear-gradient(135deg, #e8732a, #c75b24);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 900; color: white; flex-shrink: 0;
+        }
+        .comp-cliente-info { display: flex; flex-direction: column; gap: 4px; }
+        .comp-cliente-name { font-size: 18px; font-weight: 900; color: white; }
+        .comp-cliente-debt {
+            font-size: 10px; font-weight: 700;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase; letter-spacing: 1.2px;
+        }
+        .comp-cliente-debt-valor {
+            font-size: 22px; font-weight: 900;
+            color: #f39c12;
+            line-height: 1.1;
+        }
+
+
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, #25d366, #1aad52, #128a3e);
+            color: white; border: none; border-radius: 16px;
+            font-size: 16px; font-weight: 800; cursor: pointer;
+            box-shadow: 0 8px 28px rgba(37,211,102,0.4);
+            transition: transform 0.15s;
+            position: relative; overflow: hidden;
+        }
+        .btn-confirmar::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+            animation: shimmer 2.5s linear infinite;
+        }
+        .btn-confirmar:active { transform: scale(0.97); }
+        .btn-confirmar:disabled { opacity: 0.65; cursor: not-allowed; }
+
+        .comp-status {
+            text-align: center;
+            font-size: 14px; font-weight: 700;
+            width: 100%; margin-top: 16px;
+            padding: 12px 16px; border-radius: 14px;
+        }
+        .comp-status.sucesso {
+            color: #25d366;
+            background: rgba(37,211,102,0.08);
+            border: 1px solid rgba(37,211,102,0.2);
+        }
+        .comp-status.duplicado {
+            color: #e74c3c;
+            background: rgba(231,76,60,0.08);
+            border: 1px solid rgba(231,76,60,0.2);
+        }
+
+
+        /* ── TELA CONTA ── */
+        #telaConta {
+            background: #0d0508;
+            justify-content: flex-start;
+            padding: 0;
+            overflow: hidden;
+        }
+        .conta-scroll {
+            width: 100%; max-width: 420px;
+            overflow-y: auto;
+            padding: 80px 20px 40px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+
+        /* Card débito/crédito unificado */
+        .debito-valor-card {
+            width: 100%;
+            border-radius: 24px;
+            padding: 24px 24px 28px;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 10px;
+            position: relative;
+            background: linear-gradient(135deg, rgba(199,91,36,0.22), rgba(168,74,27,0.12));
+            border: 2px solid rgba(199,91,36,0.5);
+            box-shadow: 0 0 32px rgba(199,91,36,0.18);
+        }
+        .debito-valor-card::before {
+            content: '';
+            position: absolute; inset: 0;
+            border-radius: 24px;
+            background: linear-gradient(90deg, transparent, rgba(255,140,60,0.07), transparent);
+            animation: shimmer 2.5s linear infinite;
+            z-index: 0;
+        }
+        .debito-banner-row,
+        .debito-valor,
+        .debito-valor-label { position: relative; z-index: 1; }
+        .debito-valor-card.credito {
+            background: linear-gradient(135deg, rgba(37,211,102,0.18), rgba(26,173,82,0.08));
+            border: 2px solid rgba(37,211,102,0.4);
+            box-shadow: 0 0 32px rgba(37,211,102,0.15);
+        }
+        .debito-valor-card.zerado {
+            background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+            border: 2px solid rgba(255,255,255,0.12);
+            box-shadow: none;
+        }
+        .debito-banner-row {
+            display: flex; flex-direction: row;
+            align-items: center; gap: 8px;
+        }
+        .debito-banner-icon { font-size: 20px; }
+        .debito-banner-label {
+            font-size: 15px; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 2.5px;
+            color: #e8732a;
+        }
+        .debito-valor-card.credito .debito-banner-label { color: #25d366; }
+        .debito-valor-card.zerado  .debito-banner-label { color: rgba(255,255,255,0.5); }
+        .debito-valor {
+            font-size: 46px; font-weight: 900; line-height: 1;
+            letter-spacing: -1px;
+            color: #ff6b35;
+        }
+        .debito-valor.credito { color: #25d366; }
+        .debito-valor.zerado  { color: rgba(255,255,255,0.55); }
+        .debito-valor-label {
+            font-size: 11px; font-weight: 700;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase; letter-spacing: 1.8px;
+        }
+
+        /* Stat 2 colunas: Tickets + Diamantes */
+        .stats-row-dois {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .stat-box-duo {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 18px; padding: 18px 10px;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 5px;
+        }
+        .stat-box-duo .stat-icon { font-size: 24px; }
+        .stat-box-duo .stat-val  { font-size: 20px; font-weight: 900; color: white; }
+        .stat-box-duo .stat-label {
+            font-size: 10px; font-weight: 700;
+            color: rgba(255,255,255,0.35);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        /* Seção */
+        .secao-titulo {
+            font-size: 11px; font-weight: 800;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase; letter-spacing: 2px;
+            padding: 0 4px;
+        }
+
+        /* Lista de pagamentos */
+        .pag-lista { display: flex; flex-direction: column; gap: 10px; }
+        .pag-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 16px; padding: 14px 16px;
+            display: flex; align-items: center; gap: 14px;
+        }
+        .pag-icon {
+            width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+            background: rgba(37,211,102,0.12);
+            border: 1px solid rgba(37,211,102,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .pag-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .pag-valor { font-size: 16px; font-weight: 900; color: #25d366; }
+        .pag-data  { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.35); }
+        .pag-destino { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.25); }
+
+        .conta-vazio {
+            text-align: center; padding: 24px;
+            font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.25);
+        }
+
+        /* ── CARD PIX PENDENTE ── */
+        .pix-pendente-card {
+            width: 100%;
+            border-radius: 20px;
+            padding: 20px;
+            background: rgba(37,211,102,0.06);
+            border: 1.5px solid rgba(37,211,102,0.25);
+            display: flex; flex-direction: column; gap: 10px;
+            animation: cardIn 0.5s cubic-bezier(0.34,1.2,0.64,1) both;
+            transition: background 0.4s, border-color 0.4s;
+        }
+        .pix-pendente-card.duplicado {
+            background: rgba(231,76,60,0.07);
+            border-color: rgba(231,76,60,0.3);
+        }
+        .pix-pendente-card.sucesso {
+            background: rgba(37,211,102,0.1);
+            border-color: rgba(37,211,102,0.45);
+        }
+        .pix-pendente-header {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .pix-pendente-spinner {
+            width: 28px; height: 28px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .spinner-ring {
+            width: 22px; height: 22px; border-radius: 50%;
+            border: 2.5px solid rgba(37,211,102,0.2);
+            border-top-color: #25d366;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .pix-pendente-titulo {
+            font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.7);
+        }
+        .pix-pendente-valor {
+            font-size: 30px; font-weight: 900;
+            background: linear-gradient(135deg, #25d366, #1aad52);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+            line-height: 1;
+        }
+        .pix-pendente-detalhe {
+            font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.35);
+            line-height: 1.5;
+        }
+        .pix-pendente-msg {
+            font-size: 13px; font-weight: 700;
+            color: rgba(255,255,255,0.6);
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            display: none;
+            line-height: 1.5;
+        }
+        .pix-pendente-msg.sucesso {
+            color: #25d366;
+            background: rgba(37,211,102,0.08);
+            border-color: rgba(37,211,102,0.2);
+        }
+        .pix-pendente-msg.duplicado {
+            color: #ff6b6b;
+            background: rgba(231,76,60,0.08);
+            border-color: rgba(231,76,60,0.2);
+        }
+
+        /* Botão sair */
+        .btn-sair {
+            width: 100%; padding: 14px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.5);
+            border-radius: 16px; font-size: 14px; font-weight: 700;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .btn-sair:active { background: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+<!-- ── LOADING ── -->
+<div id="telaLoading" class="tela">
+    <div class="load-logo">💸</div>
+</div>
+
+<!-- ── ERRO DE CONEXÃO ── -->
+<div id="telaErroConexao" class="tela oculta" style="gap:16px;text-align:center;">
+    <div style="font-size:64px;animation:pulse 1.5s ease-in-out infinite;">📶</div>
+    <div style="font-size:22px;font-weight:900;color:white;">Sem conexão</div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.5);font-weight:500;line-height:1.6;max-width:280px;">
+        Verifique sua internet e tente novamente.
+    </div>
+    <button onclick="location.reload()" style="
+        margin-top:8px;padding:15px 36px;
+        background:linear-gradient(135deg,#e8732a,#c75b24);
+        border:none;border-radius:16px;color:white;
+        font-size:16px;font-weight:800;cursor:pointer;
+        box-shadow:0 8px 28px rgba(199,91,36,0.45);
+    ">🔄 Atualizar página</button>
+</div>
+
+<!-- ── LOGIN ── -->
+<div id="telaLogin" class="tela oculta">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="login-card">
+        <div class="login-hero">
+            <img src="icone.png" class="login-logo" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+            <div style="font-size:80px;display:none;">🍗</div>
+            <div class="login-brand">O Rei da <span>Coxinha</span></div>
+            <div class="login-sub">Confirmar pagamento 💸</div>
+        </div>
+
+        <div class="login-box">
+            <div id="loginError"></div>
+
+            <label class="field-label">Seu número (WhatsApp)</label>
+            <div class="prefix-wrap">
+                <span class="prefix">📱 819</span>
+                <input id="userPhone" class="field-input" type="tel" inputmode="numeric"
+                    placeholder="9XXXX-XXXX" maxlength="10"
+                    onkeydown="if(event.key==='Enter')auth()"
+                    onblur="auth()">
+            </div>
+
+            <div id="nameBox">
+                <label class="field-label">Como você se chama?</label>
+                <input id="userName" class="field-input" type="text"
+                    placeholder="Seu nome" maxlength="40"
+                    onkeydown="if(event.key==='Enter')auth()">
+            </div>
+
+            <button id="btnLogin" class="btn-entrar" onclick="auth()">
+                🚀 Entrar e Confirmar
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- ── TELA CONTA ── -->
+<div id="telaConta" class="tela oculta">
+    <div class="user-header">
+        <div class="user-header-avatar" id="contaAvatar">?</div>
+        <div class="user-header-info">
+            <div class="user-header-name" id="contaNome">—</div>
+            <div class="user-header-debt-label">Minha conta</div>
+        </div>
+        <div class="header-stats">
+            <div class="header-stat-card ticket-card">
+                <span class="header-stat-icon">🎟️</span>
+                <span class="header-stat-val" id="statTickets">—</span>
+            </div>
+            <div class="header-stat-card diamante-card">
+                <span class="header-stat-icon">💎</span>
+                <span class="header-stat-val" id="statDiamantes">—</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="conta-scroll">
+
+        <!-- Card débito/crédito unificado -->
+        <div class="debito-valor-card" id="saldoCard">
+            <div class="debito-banner-row">
+                <div class="debito-banner-icon" id="saldoBadgeIcon">⚠️</div>
+                <div class="debito-banner-label" id="saldoBadge">DÉBITO PENDENTE</div>
+            </div>
+            <div class="debito-valor" id="saldoValor">R$ 0,00</div>
+            <div class="debito-valor-label" id="saldoDesc">Valor em aberto</div>
+        </div>
+
+        <!-- PIX em processamento (só aparece quando vem da URL) -->
+        <div id="pixPendenteWrap" style="display:none;">
+            <div class="secao-titulo" style="margin-bottom:10px;" id="pixPendenteSectionTitle">⚡ Pagamento recebido</div>
+
+            <!-- Estado: processando / sucesso (card completo) -->
+            <div id="pixPendenteCard" class="pix-pendente-card">
+                <div class="pix-pendente-header">
+                    <div class="pix-pendente-spinner" id="pixSpinner">
+                        <div class="spinner-ring"></div>
+                    </div>
+                    <div class="pix-pendente-titulo" id="pixPendenteTitulo">Registrando pagamento…</div>
+                </div>
+                <div class="pix-pendente-valor" id="pixPendenteValor">—</div>
+                <div class="pix-pendente-detalhe" id="pixPendenteDetalhe">Aguarde…</div>
+                <div class="pix-pendente-msg" id="pixPendenteMsg"></div>
+            </div>
+
+            <!-- Estado: duplicado (igual ao pag-item da lista) -->
+            <div id="pixDuplicadoItem" class="pag-item" style="display:none;">
+                <div class="pag-icon" style="background:rgba(243,156,18,0.12);border-color:rgba(243,156,18,0.25);">⚠️</div>
+                <div class="pag-info">
+                    <div class="pag-valor" id="pixDupValor">—</div>
+                    <div class="pag-data" id="pixDupData">—</div>
+                    <div class="pag-destino" id="pixDupDestino">—</div>
+                </div>
+            </div>
+
+            <!-- Estado: sucesso (igual ao pag-item da lista) -->
+            <div id="pixSucessoItem" class="pag-item" style="display:none;">
+                <div class="pag-icon">✅</div>
+                <div class="pag-info">
+                    <div class="pag-valor" id="pixSucValor">—</div>
+                    <div class="pag-data" id="pixSucData">—</div>
+                    <div class="pag-destino" id="pixSucMsg">✅ Pagamento registrado com sucesso</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagamentos recentes -->
+        <div class="secao-titulo">Últimos pagamentos</div>
+        <div class="pag-lista" id="listaPagamentos">
+            <div class="conta-vazio">Carregando...</div>
+        </div>
+
+        <!-- Sair -->
+        <button class="btn-sair" onclick="sairConta()">Sair da conta</button>
+
+    </div>
+</div>
+
+<script>
+
+// ═══════════════════════════════════════════
+// SYNC DE SESSÃO ENTRE PÁGINAS (BroadcastChannel)
+// ═══════════════════════════════════════════
+(function() {
+    var _bc = null;
+    try { _bc = new BroadcastChannel('rei_coxinha_session'); } catch(e) {}
+
+    function telaAtualEh(id) {
+        var el = document.getElementById(id);
+        return el && !el.classList.contains('oculta');
+    }
+
+    if (_bc) {
+        _bc.onmessage = function(ev) {
+            var msg = ev.data || {};
+            if (msg.type === 'LOGOUT') {
+                localStorage.removeItem('rei_phone');
+                localStorage.removeItem('rei_user');
+                if (telaAtualEh('telaConta')) window.location.reload();
+            } else if (msg.type === 'LOGIN' && msg.phone) {
+                localStorage.setItem('rei_phone', msg.phone);
+                if (msg.user) localStorage.setItem('rei_user', JSON.stringify(msg.user));
+                if (telaAtualEh('telaLogin')) window.location.reload();
+            }
+        };
+    }
+
+    window.addEventListener('storage', function(ev) {
+        if (ev.key === 'rei_phone') {
+            if (!ev.newValue) {
+                if (telaAtualEh('telaConta')) window.location.reload();
+            } else if (ev.newValue && !ev.oldValue) {
+                if (telaAtualEh('telaLogin')) window.location.reload();
+            }
+        }
+    });
+
+    window._bcSend = function(msg) { if (_bc) _bc.postMessage(msg); };
+})();
+
+// ── CONFIG ──────────────────────────────────────────────────
+const SUPABASE_URL  = "https://vpeyqgijajywgswmezlh.supabase.co";
+const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXlxZ2lqYWp5d2dzd21lemxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNTM1MDIsImV4cCI6MjA4NjgyOTUwMn0.LA5Cbof7IKWAA7l8YbCuPzANpCy0rX_Dro4l9fcDgoQ";
+const PHONE_ALIASES = { "81987650178": "81986633773" };
+const ADM_PHONE     = "81996603348"; // adm: so visualiza, nao registra
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let user     = null;
+let pixDados = null; // { valor, valorNum, data, hora, destino, plataforma }
+
+// ── PARSE URL PIX ────────────────────────────────────────────
+// Formato: ?50,00=20/04/26=10:00=Eronildo=Santos
+//   1° valor  |  2° data  |  3° hora  |  4° nome  |  5° sobrenome (opcional)
+// Destino fixo: Jefferson Leandro (via picpay)
+function parseValorPix(raw) {
+    raw = (raw || '').trim();
+    if (raw.includes(',')) {
+        // Formato BR: ponto é milhar, vírgula é decimal → "1.234,56"
+        return parseFloat(raw.replace(/\./g, '').replace(',', '.'));
+    }
+    if (raw.includes('.')) {
+        const partes = raw.split('.');
+        // Um único ponto com 1 ou 2 dígitos depois = decimal ("12.00", "12.5")
+        if (partes.length === 2 && partes[1].length <= 2) {
+            return parseFloat(raw);
+        }
+        // Mais de um ponto ou 3+ dígitos depois = milhar sem decimal ("1.234")
+        return parseFloat(raw.replace(/\./g, ''));
+    }
+    return parseFloat(raw);
+}
+
+function parsearURLPix() {
+    const search = decodeURIComponent(window.location.search);
+    if (!search) return null;
+
+    // Remove o '?' inicial e divide por '='
+    const raw = search.substring(1);
+    const partes = raw.split('=');
+
+    // Aceita 4 partes (sem sobrenome) ou 5 (com sobrenome)
+    if (partes.length < 4 || partes.length > 5) return null;
+
+    const valorRaw  = partes[0]; // ex: "50,00"
+    const data      = partes[1]; // ex: "20/04/26"
+    const hora      = partes[2]; // ex: "10:00"
+    const nome      = partes[3]; // ex: "Eronildo"
+    const sobrenome = partes[4] || ''; // ex: "Santos" (opcional)
+
+    // Formato antigo com R$: rejeitado
+    if (valorRaw.includes('R$')) return null;
+    // Nome obrigatório
+    if (!nome.trim()) return null;
+
+    // Parseia valor aceitando formato BR ("39,90" / "1.234,56") e formato
+    // com ponto decimal ("39.90"), que antes era lido como milhar e inflava o valor.
+    const valorNum = parseValorPix(valorRaw);
+    if (isNaN(valorNum) || valorNum <= 0) return null;
+
+    // Nome completo de quem enviou
+    const remetentePix = [nome, sobrenome].filter(Boolean).join(' ');
+
+    // Destino FIXO
+    const destino = 'Jefferson Leandro (via picpay)';
+
+    // Formata valor para exibição
+    const valorFmt = `R$ ${valorNum.toFixed(2).replace('.',',')}`;
+
+    return {
+        valor:         valorFmt,
+        valorNum,
+        data,
+        hora,
+        destino,
+        remetentePix   // nome de quem enviou o Pix (da URL)
+    };
+}
+
+// ── TELAS ────────────────────────────────────────────────────
+function mostrar(id) {
+    ['telaLoading','telaLogin','telaConta','telaErroConexao'].forEach(t => {
+        document.getElementById(t).classList.add('oculta');
+    });
+    const el = document.getElementById(id);
+    el.classList.remove('oculta');
+}
+
+
+// ── ERRO DE LOGIN ─────────────────────────────────────────────
+function loginErro(msg) {
+    const el = document.getElementById('loginError');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+// ── PREENCHER COMPROVANTE ─────────────────────────────────────
+// Retorna: null (não registrado) | { meu: true } (eu mesmo) | { meu: false, nome: "..." } (outro cliente)
+async function pixJaRegistrado() {
+    if (!pixDados || !user) return null;
+    const { data, error } = await sb
+        .from('pagamentos_pix')
+        .select('phone')
+        .eq('valor', pixDados.valorNum)
+        .eq('data_pix', pixDados.data)
+        .eq('hora_pix', pixDados.hora)
+        .maybeSingle();
+    if (error) { console.error('Erro ao checar Pix:', error); return null; }
+    if (!data) return null;
+    if (data.phone === user.phone) return { meu: true };
+
+    // Busca o nome do outro cliente
+    const { data: outro } = await sb
+        .from('clientes')
+        .select('name')
+        .eq('phone', data.phone)
+        .maybeSingle();
+    return { meu: false, nome: outro?.name || 'outro cliente' };
+}
+
+async function marcarPixRegistrado() {
+    if (!pixDados || !user) return false;
+    const { error } = await sb.from('pagamentos_pix').insert({
+        phone:          user.phone,
+        valor:          pixDados.valorNum,
+        data_pix:       pixDados.data,
+        hora_pix:       pixDados.hora,
+        destino:        pixDados.destino,
+        remetente_pix:  pixDados.remetentePix,
+        adm:            false
+    });
+    if (error) {
+        console.error('Erro ao salvar Pix:', error);
+        return false;
+    }
+    return true;
+}
+
+// ── CARREGAR LISTA DE PAGAMENTOS ──────────────────────────────
+async function carregarPagamentos(phone) {
+    const lista = document.getElementById('listaPagamentos');
+    try {
+        const { data: pagamentos } = await sb
+            .from('pagamentos_pix')
+            .select('valor, data_pix, hora_pix, destino')
+            .eq('phone', phone)
+            .order('created_at', { ascending: false })
+            .limit(15);
+
+        if (!pagamentos || pagamentos.length === 0) {
+            lista.innerHTML = '<div class="conta-vazio">Nenhum pagamento registrado ainda</div>';
+        } else {
+            lista.innerHTML = pagamentos.map(p => `
+                <div class="pag-item">
+                    <div class="pag-icon">💸</div>
+                    <div class="pag-info">
+                        <div class="pag-valor">R$ ${Number(p.valor).toFixed(2).replace('.',',')}</div>
+                        <div class="pag-data">${p.data_pix} às ${p.hora_pix}</div>
+                        <div class="pag-destino">${p.destino || ''}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch(e) {
+        lista.innerHTML = '<div class="conta-vazio">Erro ao carregar pagamentos</div>';
+    }
+}
+
+// ── ANIMAÇÃO DA DÍVIDA ────────────────────────────────────────
+function animarDivida(deStart, deEnd) {
+    let centAtual = Math.round(deStart * 100);
+    const centFinal = Math.round(deEnd * 100);
+    if (centAtual <= centFinal) return;
+
+    const intervalo = setInterval(() => {
+        centAtual -= 4;
+        if (centAtual <= centFinal) {
+            centAtual = centFinal;
+            clearInterval(intervalo);
+        }
+        const val = centAtual / 100;
+        const fmt = val > 0
+            ? `R$ ${val.toFixed(2).replace('.',',')}`
+            : val < 0
+                ? `R$ ${Math.abs(val).toFixed(2).replace('.',',')}`
+                : 'R$ 0,00';
+        const el = document.getElementById('saldoValor');
+        if (el) el.textContent = fmt;
+    }, 10);
+}
+
+// ── EXIBIR PIX PENDENTE NA TELA CONTA ────────────────────────
+function mostrarPixPendente() {
+    if (!pixDados) return;
+    const wrap = document.getElementById('pixPendenteWrap');
+    wrap.style.display = 'block';
+    document.getElementById('pixPendenteValor').textContent = pixDados.valor;
+    document.getElementById('pixPendenteDetalhe').textContent =
+        `${pixDados.data} às ${pixDados.hora}  ·  ${pixDados.remetentePix}  →  ${pixDados.destino}`;
+}
+
+function setPixStatus(tipo, _titulo, _msgHTML) {
+    if (tipo === 'duplicado') {
+        document.getElementById('pixPendenteCard').style.display = 'none';
+        document.getElementById('pixSucessoItem').style.display  = 'none';
+        document.getElementById('pixDuplicadoItem').style.display = 'flex';
+        document.getElementById('pixDupValor').textContent  = pixDados ? pixDados.valor : '—';
+        document.getElementById('pixDupData').textContent   = pixDados ? `${pixDados.data} às ${pixDados.hora}` : '—';
+        document.getElementById('pixDupDestino').textContent = _titulo || '❌ Pix já registrado';
+        return;
+    }
+
+    if (tipo === 'sucesso') {
+        document.getElementById('pixPendenteCard').style.display  = 'none';
+        document.getElementById('pixDuplicadoItem').style.display = 'none';
+        document.getElementById('pixSucessoItem').style.display   = 'flex';
+        document.getElementById('pixSucValor').textContent = pixDados ? pixDados.valor : '—';
+        document.getElementById('pixSucData').textContent  = pixDados ? `${pixDados.data} às ${pixDados.hora}` : '—';
+        return;
+    }
+
+    // Processando / ADM — card completo
+    document.getElementById('pixPendenteCard').style.display  = 'flex';
+    document.getElementById('pixDuplicadoItem').style.display = 'none';
+    document.getElementById('pixSucessoItem').style.display   = 'none';
+
+    const card    = document.getElementById('pixPendenteCard');
+    const spinner = document.getElementById('pixSpinner');
+    const tituloEl= document.getElementById('pixPendenteTitulo');
+    const msgEl   = document.getElementById('pixPendenteMsg');
+
+    card.className    = 'pix-pendente-card ' + tipo;
+    tituloEl.textContent = _titulo;
+    msgEl.className   = 'pix-pendente-msg ' + tipo;
+    msgEl.innerHTML   = _msgHTML;
+    msgEl.style.display = _msgHTML ? 'block' : 'none';
+}
+
+// ── CONFIRMAR PAGAMENTO (integrado na telaConta) ──────────────
+async function confirmarPagamento() {
+    if (!pixDados || !user) return;
+
+    // ADM apenas visualiza
+    if (user.phone === ADM_PHONE) {
+        const pixURL = 'https://jefferson8564.github.io/dino-i.a/' + window.location.search;
+        setPixStatus('', '👁️ Modo administrador — só visualização',
+            `<button onclick="window.open('${pixURL}','_blank')" style="width:100%;padding:13px;background:linear-gradient(135deg,#c75b24,#a84a1b);color:white;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 6px 20px rgba(199,91,36,0.4);">🤖 Enviar para o Dino</button>`);
+        return;
+    }
+
+    try {
+        // Checa duplicidade antes de tudo
+        const jaReg = await pixJaRegistrado();
+        if (jaReg) {
+            if (jaReg.meu) {
+                setPixStatus('duplicado', '❌ Pix já registrado por você');
+            } else {
+                setPixStatus('duplicado', `❌ Pix já registrado por ${jaReg.nome}`);
+            }
+            return;
+        }
+
+        // Insere o pagamento
+        const ok = await marcarPixRegistrado();
+        if (!ok) {
+            const jaReg2 = await pixJaRegistrado();
+            if (jaReg2) {
+                const nome2 = jaReg2.meu ? 'você' : jaReg2.nome;
+                setPixStatus('duplicado', `❌ Pix já registrado por ${nome2}`);
+            } else {
+                setPixStatus('duplicado', '❌ Erro ao registrar');
+            }
+            return;
+        }
+
+        // Atualiza o saldo (debt)
+        const { data: clienteAtual, error: errBusca } = await sb
+            .from('clientes')
+            .select('debt')
+            .eq('phone', user.phone)
+            .maybeSingle();
+
+        if (errBusca || !clienteAtual) throw new Error('Cliente não encontrado');
+
+        const debtAtual = Number(clienteAtual.debt) || 0;
+        const novoDebt  = debtAtual - pixDados.valorNum;
+
+        const { error: errUpdate } = await sb
+            .from('clientes')
+            .update({ debt: novoDebt })
+            .eq('phone', user.phone);
+
+        if (errUpdate) throw errUpdate;
+
+        user.debt = novoDebt;
+        localStorage.setItem('rei_user', JSON.stringify(user));
+
+        // Atualiza visualmente o card de saldo
+        const card       = document.getElementById('saldoCard');
+        const badgeIcon  = document.getElementById('saldoBadgeIcon');
+        const badgeLabel = document.getElementById('saldoBadge');
+        const valorEl    = document.getElementById('saldoValor');
+        const desc       = document.getElementById('saldoDesc');
+
+        if (novoDebt > 0) {
+            card.className = 'debito-valor-card';
+            badgeIcon.textContent = '⚠️'; badgeLabel.textContent = 'DÉBITO PENDENTE';
+            valorEl.className = 'debito-valor';
+            valorEl.textContent = 'R$ ' + novoDebt.toFixed(2).replace('.',',');
+            desc.textContent = 'Valor que você ainda deve';
+        } else if (novoDebt < 0) {
+            card.className = 'debito-valor-card credito';
+            badgeIcon.textContent = '✅'; badgeLabel.textContent = 'CRÉDITO DISPONÍVEL';
+            valorEl.className = 'debito-valor credito';
+            valorEl.textContent = 'R$ ' + Math.abs(novoDebt).toFixed(2).replace('.',',');
+            desc.textContent = 'Será descontado no próximo pedido';
+        } else {
+            card.className = 'debito-valor-card zerado';
+            badgeIcon.textContent = '✅'; badgeLabel.textContent = 'EM DIA';
+            valorEl.className = 'debito-valor zerado';
+            valorEl.textContent = 'R$ 0,00';
+            desc.textContent = 'Nenhuma pendência';
+        }
+
+        animarDivida(debtAtual, novoDebt);
+
+        const novoDebtFmt = novoDebt > 0
+            ? `R$ ${novoDebt.toFixed(2).replace('.',',')} em aberto`
+            : novoDebt < 0
+                ? `Crédito de R$ ${Math.abs(novoDebt).toFixed(2).replace('.',',')} disponível`
+                : 'Conta zerada — em dia! ✅';
+
+        setPixStatus('sucesso');
+
+        // Recarrega lista de pagamentos
+        carregarPagamentos(user.phone);
+
+    } catch(err) {
+        console.error('Erro ao registrar pagamento:', err);
+        setPixStatus('duplicado', '❌ Erro inesperado — recarregue a página');
+    }
+}
+
+// ── EXIBIR COMPROVANTE (agora redireciona para telaConta) ─────
+async function exibirComprovante() {
+    mostrar('telaConta');
+    const { data: client } = await sb.from('clientes').select('*').eq('phone', user.phone).maybeSingle();
+    if (client) {
+        await preencherConta(client);
+    } else {
+        await preencherConta(JSON.parse(localStorage.getItem('rei_user') || '{}'));
+    }
+    mostrarPixPendente();
+    const reg = await pixJaRegistrado();
+    if (reg) {
+        if (reg.meu) {
+            setPixStatus('duplicado', '❌ Pix já registrado por você');
+        } else {
+            setPixStatus('duplicado', `❌ Pix já registrado por ${reg.nome}`);
+        }
+    } else {
+        confirmarPagamento();
+    }
+}
+
+// ── TELA CONTA ───────────────────────────────────────────────
+async function preencherConta(cliente) {
+    // Header
+    document.getElementById('contaAvatar').textContent = cliente.name.charAt(0).toUpperCase();
+    document.getElementById('contaNome').textContent   = cliente.name;
+
+    // Card unificado débito/crédito
+    const card       = document.getElementById('saldoCard');
+    const badgeIcon  = document.getElementById('saldoBadgeIcon');
+    const badgeLabel = document.getElementById('saldoBadge');
+    const valor      = document.getElementById('saldoValor');
+    const desc       = document.getElementById('saldoDesc');
+    const debt       = Number(cliente.debt) || 0;
+
+    if (debt > 0) {
+        card.className        = 'debito-valor-card';
+        badgeIcon.textContent = '⚠️';
+        badgeLabel.textContent = 'DÉBITO PENDENTE';
+        valor.className       = 'debito-valor';
+        valor.textContent     = 'R$ ' + debt.toFixed(2).replace('.',',');
+        desc.textContent      = 'Valor que você ainda deve';
+    } else if (debt < 0) {
+        card.className        = 'debito-valor-card credito';
+        badgeIcon.textContent = '✅';
+        badgeLabel.textContent = 'CRÉDITO DISPONÍVEL';
+        valor.className       = 'debito-valor credito';
+        valor.textContent     = 'R$ ' + Math.abs(debt).toFixed(2).replace('.',',');
+        desc.textContent      = 'Será descontado no próximo pedido';
+    } else {
+        card.className        = 'debito-valor-card zerado';
+        badgeIcon.textContent = '✅';
+        badgeLabel.textContent = 'EM DIA';
+        valor.className       = 'debito-valor zerado';
+        valor.textContent     = 'R$ 0,00';
+        desc.textContent      = 'Nenhuma pendência';
+    }
+
+    // Stats — Tickets + Diamantes
+    document.getElementById('statTickets').textContent   = cliente.tickets   ?? 0;
+    document.getElementById('statDiamantes').textContent = cliente.diamantes ?? 0;
+
+    // Pagamentos recentes
+    await carregarPagamentos(cliente.phone);
+}
+
+function sairConta() {
+    localStorage.removeItem('rei_phone');
+    localStorage.removeItem('rei_user');
+    window._bcSend && window._bcSend({ type: 'LOGOUT' });
+    user = null;
+    mostrar('telaLogin');
+}
+
+// ── AUTH ──────────────────────────────────────────────────────
+async function auth() {
+    const btn = document.getElementById('btnLogin');
+    btn.disabled = true;
+    btn.textContent = 'Entrando...';
+    document.getElementById('loginError').style.display = 'none';
+
+    let phone;
+    const savedPhone = localStorage.getItem('rei_phone');
+    if (savedPhone) {
+        phone = savedPhone;
+    } else {
+        let partial = document.getElementById('userPhone').value.replace(/\D/g,'');
+        if (partial.startsWith('55')) partial = partial.substring(2);
+        if (partial.length < 8) {
+            loginErro('Digite o número completo (mínimo 8 dígitos)');
+            btn.disabled = false; btn.textContent = '🚀 Entrar e Confirmar';
+            return;
+        }
+        partial = partial.slice(-8);
+        phone = '819' + partial;
+        if (PHONE_ALIASES[phone]) phone = PHONE_ALIASES[phone];
+    }
+
+    try {
+        let { data: client } = await sb.from('clientes').select('*').eq('phone', phone).maybeSingle();
+
+        if (!client) {
+            // Novo usuário — pedir nome
+            const nb = document.getElementById('nameBox');
+            if (nb.style.display === 'none' || nb.style.display === '') {
+                nb.style.display = 'block';
+                btn.disabled = false; btn.textContent = '🚀 Entrar e Confirmar';
+                document.getElementById('userName').focus();
+                return;
+            }
+            const name = document.getElementById('userName').value.trim();
+            if (!name) {
+                loginErro('Digite seu nome');
+                btn.disabled = false; btn.textContent = '🚀 Entrar e Confirmar';
+                return;
+            }
+            const { data: newClient, error } = await sb.from('clientes')
+                .insert({ name, phone, debt: 0 }).select().single();
+            if (error) throw error;
+            client = newClient;
+        }
+
+        user = {
+            name: client.name, phone: client.phone, debt: client.debt,
+            created_at: client.created_at, oferta_ativa: client.oferta_ativa
+        };
+        localStorage.setItem('rei_phone', phone);
+        localStorage.setItem('rei_user',  JSON.stringify(user));
+        window._bcSend && window._bcSend({ type: 'LOGIN', phone: phone, user: user });
+
+        // Preenche, exibe comprovante e registra automaticamente
+        if (!pixDados) {
+            mostrar('telaConta');
+            preencherConta(client);
+        } else {
+            exibirComprovante();
+        }
+
+    } catch(e) {
+        console.error('Auth error:', e);
+        loginErro('Erro de conexão. Tente novamente.');
+        btn.disabled = false; btn.textContent = '🚀 Entrar e Confirmar';
+    }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+window.onload = async () => {
+    pixDados = parsearURLPix();
+
+    const savedPhone = localStorage.getItem('rei_phone');
+
+    // Sem link PIX — tela de conta ou erro/login
+    if (!pixDados) {
+        if (savedPhone) {
+            try {
+                const { data: client } = await sb.from('clientes')
+                    .select('*').eq('phone', savedPhone).maybeSingle();
+                if (client) {
+                    mostrar('telaConta');
+                    preencherConta(client);
+                    return;
+                } else {
+                    // Null silencioso — usa cache
+                    const cached = localStorage.getItem('rei_user');
+                    if (cached) {
+                        mostrar('telaConta');
+                        preencherConta(JSON.parse(cached));
+                        return;
+                    }
+                    mostrar('telaErroConexao');
+                    return;
+                }
+            } catch(e) {
+                const cached = localStorage.getItem('rei_user');
+                if (cached) {
+                    mostrar('telaConta');
+                    preencherConta(JSON.parse(cached));
+                    return;
+                }
+                mostrar('telaErroConexao');
+                return;
+            }
+        }
+        // Sem telefone salvo → cliente novo → login
+        mostrar('telaLogin');
+        return;
+    }
+
+    // Com link PIX — fluxo normal de comprovante
+    const guard = setTimeout(() => mostrar('telaErroConexao'), 12000);
+
+    if (savedPhone) {
+        try {
+            const { data: client } = await sb.from('clientes')
+                .select('*').eq('phone', savedPhone).maybeSingle();
+            if (client) {
+                user = {
+                    name: client.name, phone: client.phone, debt: client.debt,
+                    created_at: client.created_at, oferta_ativa: client.oferta_ativa
+                };
+                localStorage.setItem('rei_user', JSON.stringify(user));
+                clearTimeout(guard);
+                exibirComprovante();
+                return;
+            } else {
+                // Null silencioso — usa cache
+                const cached = localStorage.getItem('rei_user');
+                if (cached) {
+                    user = JSON.parse(cached);
+                    clearTimeout(guard);
+                    exibirComprovante();
+                    return;
+                }
+                clearTimeout(guard);
+                mostrar('telaErroConexao');
+                return;
+            }
+        } catch(e) {
+            const cached = localStorage.getItem('rei_user');
+            if (cached) {
+                user = JSON.parse(cached);
+                clearTimeout(guard);
+                exibirComprovante();
+                return;
+            }
+            clearTimeout(guard);
+            mostrar('telaErroConexao');
+            return;
+        }
+    }
+
+    // Sem telefone salvo → cliente novo → login
+    clearTimeout(guard);
+    mostrar('telaLogin');
+};
+</script>
+</body>
+</html>
