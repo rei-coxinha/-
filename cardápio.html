@@ -1271,6 +1271,68 @@
     </div>
 </div>
 
+<!-- ===== POPUP INSTALAR APP ===== -->
+<div id="modalInstalarApp" style="
+    display:none; position:fixed; inset:0; z-index:5000;
+    background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center;
+    padding:24px 16px;
+">
+    <div style="
+        position:relative; overflow:hidden;
+        background:linear-gradient(160deg,#0a1535,#0d1d50);
+        border:1px solid rgba(150,80,255,0.4);
+        border-radius:28px; padding:32px 24px 24px;
+        max-width:360px; width:100%;
+        text-align:center;
+        box-shadow:0 20px 60px rgba(0,0,40,0.8), 0 0 0 1px rgba(150,80,255,0.15), inset 0 1px 0 rgba(150,80,255,0.2);
+        animation: slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+    ">
+        <div style="
+            position:absolute; top:-80px; left:50%; transform:translateX(-50%);
+            width:260px; height:260px; border-radius:50%;
+            background:radial-gradient(circle, rgba(140,50,255,0.5) 0%, transparent 65%);
+            pointer-events:none;
+        "></div>
+        <div style="
+            position:absolute; bottom:-40px; right:-40px;
+            width:140px; height:140px; border-radius:50%;
+            background:radial-gradient(circle, rgba(120,40,220,0.3) 0%, transparent 70%);
+            pointer-events:none;
+        "></div>
+
+        <img src="icone.png" style="
+            width:100px; height:100px; border-radius:24px;
+            margin:0 auto 18px; display:block; position:relative;
+            box-shadow:0 8px 32px rgba(140,50,255,0.6), 0 0 0 3px rgba(150,80,255,0.25);
+        "/>
+
+        <div style="font-size:20px; font-weight:900; color:white; margin-bottom:8px; letter-spacing:-0.3px; position:relative; text-shadow:0 2px 12px rgba(0,0,80,0.8);">Instalar o app</div>
+        <div style="font-size:13px; color:rgba(180,200,255,0.75); font-weight:500; line-height:1.7; margin-bottom:24px; position:relative; text-shadow:0 1px 8px rgba(0,0,60,0.9);">
+            Adicione na tela inicial e acesse<br>mais rápido, como um app de verdade! 📲
+        </div>
+
+        <div style="
+            background:rgba(100,60,200,0.12);
+            border:1px solid rgba(150,80,255,0.2);
+            border-radius:16px; padding:14px 16px; margin-bottom:22px; text-align:left; position:relative;
+        ">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <span style="font-size:18px;">⚡</span>
+                <span style="font-size:12px;color:rgba(200,180,255,0.9);font-weight:600;text-shadow:0 1px 6px rgba(0,0,60,0.8);">Abre instantaneamente</span>
+            </div>
+        </div>
+
+        <button id="btnConfirmarInstalar" onclick="_confirmarInstalar()" style="
+            width:100%; padding:16px; position:relative;
+            background:linear-gradient(135deg,#1aad52,#25d366);
+            border:none; border-radius:16px; color:white;
+            font-size:15px; font-weight:900; cursor:pointer;
+            box-shadow:0 6px 24px rgba(37,211,102,0.4);
+            -webkit-tap-highlight-color:transparent;
+        ">📲 Instalar agora</button>
+    </div>
+</div>
 
 <!-- ===== POPUP PERMISSÃO NOTIFICAÇÃO ===== -->
 
@@ -1679,6 +1741,9 @@ window.onload = async () => {
     }
 };
 
+// ===== PWA VARS (declaradas cedo para uso em mostrarPopupInstalacao) =====
+let _pwaInstallPrompt = null;
+const _isEmStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 
 // ===== AUTH =====
 async function auth() {
@@ -1784,13 +1849,14 @@ async function auth() {
 }
 
 function mostrarPopupOferta(client, clienteNovo) {
-    if (!client.created_at) { return; }
+    if (!client.created_at) { mostrarPopupInstalacao(); return; }
 
     const diasPassados = (Date.now() - new Date(client.created_at).getTime()) / (1000 * 60 * 60 * 24);
     const dentroDosPrazos = diasPassados <= 15;
 
     if (!dentroDosPrazos) {
         // Passou dos 15 dias — sem popup de oferta
+        mostrarPopupInstalacao();
         return;
     }
 
@@ -1840,8 +1906,18 @@ function _fecharBoasVindas() {
             modal.style.transition = '';
         }, 300);
     }
+    // Após fechar boas-vindas, oferece instalação do app
+    setTimeout(() => mostrarPopupInstalacao(), 400);
 }
 
+// ===== PWA: mostrar popup de instalação (se disponível e não instalado) =====
+function mostrarPopupInstalacao() {
+    if (_isEmStandalone) return; // já está instalado como PWA
+    if (_pwaInstallPrompt) {
+        const modal = document.getElementById('modalInstalarApp');
+        if (modal) modal.style.display = 'flex';
+    }
+}
 
 function showLoginError(msg) {
     const el = document.getElementById('loginError');
@@ -2742,6 +2818,43 @@ function togglePrivacidadeHeader() {
     const novoValor = !user.show_name;
     salvarPrivacidade(novoValor);
 }
+
+// ===== PWA INSTALL =====
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _pwaInstallPrompt = e;
+    const btn = document.getElementById('btnInstalarApp');
+    if (btn) btn.style.display = 'flex';
+    // Abre popup automaticamente
+    document.getElementById('modalInstalarApp').style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', () => {
+    _pwaInstallPrompt = null;
+    const btn = document.getElementById('btnInstalarApp');
+    if (btn) btn.style.display = 'none';
+});
+
+function abrirPopupInstalar() {
+    if (_pwaInstallPrompt) {
+        document.getElementById('modalInstalarApp').style.display = 'flex';
+    }
+}
+function _fecharPopupInstalar() {
+    document.getElementById('modalInstalarApp').style.display = 'none';
+}
+async function _confirmarInstalar() {
+    if (!_pwaInstallPrompt) return;
+    _pwaInstallPrompt.prompt();
+    const { outcome } = await _pwaInstallPrompt.userChoice;
+    _pwaInstallPrompt = null;
+    document.getElementById('modalInstalarApp').style.display = 'none';
+    if (outcome === 'accepted') {
+        const btn = document.getElementById('btnInstalarApp');
+        if (btn) btn.style.display = 'none';
+    }
+}
+
 
 
 

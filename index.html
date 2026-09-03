@@ -1,107 +1,167 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#111827">
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" href="./icone.png">
-    <title>🍗 O Rei da Coxinha</title>
-    <style>
-        *{box-sizing:border-box}
-        html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b1020;color:#fff}
-        body{display:flex;align-items:center;justify-content:center;overflow:hidden}
-        .gate{width:min(430px,92vw);text-align:center;padding:30px 22px}
-        .logo{width:112px;height:112px;border-radius:28px;object-fit:cover;box-shadow:0 12px 40px rgba(0,0,0,.5);margin-bottom:22px}
-        h1{margin:0 0 10px;font-size:26px;font-weight:900}
-        p{margin:0 auto 24px;color:rgba(255,255,255,.72);line-height:1.55;font-size:14px}
-        .install{width:100%;padding:17px;border:0;border-radius:16px;background:linear-gradient(135deg,#1aad52,#25d366);color:#fff;font-size:16px;font-weight:900;box-shadow:0 8px 28px rgba(37,211,102,.28);cursor:pointer}
-        .install:disabled{opacity:.55;cursor:default}
-        .hint{margin-top:15px;font-size:12px;color:rgba(255,255,255,.48);line-height:1.5}
-        .loading{display:none}
-        .loading.active{display:block}
-        .spinner{width:38px;height:38px;margin:0 auto 16px;border:4px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0b">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icone.png">
+<link rel="apple-touch-icon" href="./icone.png">
+<title>O Rei da Coxinha</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Arial,sans-serif;background:#050505;color:#fff}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;overflow:hidden}
+.bg{position:fixed;inset:0;background:radial-gradient(circle at 50% 15%,rgba(255,190,20,.16),transparent 35%),radial-gradient(circle at 50% 90%,rgba(255,130,0,.08),transparent 38%);pointer-events:none}
+.card{position:relative;width:min(450px,94vw);padding:30px 22px 24px;text-align:center;border:1px solid rgba(255,190,20,.32);border-radius:28px;background:linear-gradient(145deg,#191919,#080808);box-shadow:0 25px 70px rgba(0,0,0,.65),0 0 45px rgba(255,170,0,.08);overflow:hidden}
+.shine{position:absolute;top:-130px;left:-180px;width:80px;height:500px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);transform:rotate(23deg);animation:shine 4.5s ease-in-out infinite}
+.logo{width:108px;height:108px;border-radius:25px;object-fit:cover;box-shadow:0 10px 35px rgba(0,0,0,.55);animation:float 2.5s ease-in-out infinite}
+h1{font-size:26px;margin:17px 0 8px;font-weight:900}h1 span{color:#ffc400}.sub{color:#aaa;font-size:13px;line-height:1.55;margin:0 auto 22px}
+.badge{display:inline-block;padding:8px 13px;border:1px solid rgba(255,196,0,.35);border-radius:999px;color:#ffd33d;background:rgba(255,190,0,.08);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.8px}
+.title{font-size:20px;font-weight:900;margin:18px 0 8px}.desc{color:#c9c9c9;font-size:13px;line-height:1.6;margin:0 0 20px}
+.install{width:100%;border:0;border-radius:15px;padding:16px;background:linear-gradient(180deg,#ffd02b,#e99b00);color:#171000;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 10px 28px rgba(230,150,0,.2)}
+.install:disabled{opacity:.6;cursor:default}.hint{font-size:11px;color:#777;line-height:1.5;margin-top:13px}.loading{display:none}.loading.active{display:block}.spinner{width:40px;height:40px;margin:0 auto 16px;border:4px solid rgba(255,255,255,.14);border-top-color:#ffc400;border-radius:50%;animation:spin .75s linear infinite}
+.route{font-size:11px;color:#555;margin-top:12px;word-break:break-all}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}@keyframes shine{0%,12%{left:-180px;opacity:0}22%{opacity:1}50%,100%{left:650px;opacity:0}}
+</style>
 </head>
 <body>
-    <main class="gate" id="installGate">
-        <img class="logo" src="./icone.png" alt="O Rei da Coxinha">
-        <h1>🍗 O Rei da Coxinha</h1>
-        <p>Para continuar, instale o aplicativo na tela inicial.<br>Depois da instalação, o cardápio será aberto automaticamente.</p>
-        <button class="install" id="installButton" disabled>📲 Preparando instalação...</button>
-        <div class="hint" id="installHint">Aguarde enquanto o sistema prepara a instalação.</div>
-    </main>
+<div class="bg"></div>
+<main class="card" id="installGate">
+  <div class="shine"></div>
+  <img class="logo" src="./icone.png" alt="O Rei da Coxinha">
+  <h1>O Rei da <span>Coxinha</span></h1>
+  <p class="sub">O aplicativo oficial reúne o cardápio e as demais funções do sistema em um único PWA.</p>
+  <div class="badge">📲 Instalação necessária</div>
+  <div class="title">Instale o aplicativo para continuar</div>
+  <p class="desc">O sistema identificou que este aparelho ainda não está usando o aplicativo instalado. A instalação é necessária antes de abrir qualquer função solicitada, seja o cardápio, pedidos, Pix, jogos ou outra rota do sistema.</p>
+  <button class="install" id="installButton" disabled>Preparando instalação...</button>
+  <div class="hint" id="installHint">Aguarde enquanto preparamos a instalação.</div>
+  <div class="route" id="routeInfo"></div>
+</main>
 
-    <main class="gate loading" id="loadingGate">
-        <div class="spinner"></div>
-        <h1>🍗 Abrindo o aplicativo...</h1>
-    </main>
+<main class="card loading" id="loadingGate">
+  <div class="spinner"></div>
+  <h1>Abrindo o <span>aplicativo...</span></h1>
+  <p class="sub">Preparando a função solicitada.</p>
+</main>
 
 <script>
-(function(){
-    const APP='./cardápio.html';
-    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    const btn=document.getElementById('installButton');
-    const hint=document.getElementById('installHint');
-    const installGate=document.getElementById('installGate');
-    const loadingGate=document.getElementById('loadingGate');
-    let deferredPrompt=null;
+(() => {
+  'use strict';
 
-    function abrirApp(){
-        loadingGate.classList.add('active');
-        installGate.style.display='none';
-        const target=APP + window.location.search + window.location.hash;
-        window.location.replace(target);
+  const routes = {
+    '': 'cardápio.html',
+    'cardapio': 'cardápio.html',
+    'cardápio': 'cardápio.html',
+    'itens': 'itens.html',
+    'pix': 'pix.html',
+    'jogos': 'jogos.html'
+  };
+
+  function getRouteKey() {
+    let path = window.location.pathname.replace(/\/+$/, '');
+    // GitHub Pages do projeto: /-/
+    if (path === '/-' || path === '') return '';
+    if (path.startsWith('/-/')) path = path.slice(3);
+    else path = path.replace(/^\/+/, '');
+    path = path.replace(/\.html$/i, '').replace(/^\/+|\/+$/g, '').toLowerCase();
+    return path;
+  }
+
+  const key = getRouteKey();
+  const destination = routes[key] || routes[''];
+  const query = window.location.search;
+  const hash = window.location.hash;
+  const target = './' + destination + query + hash;
+
+  const installGate = document.getElementById('installGate');
+  const loadingGate = document.getElementById('loadingGate');
+  const btn = document.getElementById('installButton');
+  const hint = document.getElementById('installHint');
+  document.getElementById('routeInfo').textContent = 'Destino: ' + destination;
+
+  let deferredPrompt = null;
+  let encaminhando = false;
+
+  function isInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.matchMedia('(display-mode: fullscreen)').matches ||
+           window.navigator.standalone === true;
+  }
+
+  function abrirDestino() {
+    if (encaminhando) return;
+    encaminhando = true;
+    installGate.style.display = 'none';
+    loadingGate.classList.add('active');
+    window.location.replace(target);
+  }
+
+  // REGRA PRINCIPAL: primeiro verifica instalação, depois decide a rota.
+  // Isso vale para cardápio, itens, Pix, jogos e qualquer outra rota conhecida.
+  if (isInstalled()) {
+    abrirDestino();
+    return;
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./SW-CLIENTE.js', {scope:'./'}).catch(()=>{});
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    btn.disabled = false;
+    btn.textContent = '📲 Instalar aplicativo';
+    hint.textContent = 'Toque no botão para instalar. Depois da instalação, a função solicitada será aberta automaticamente.';
+  });
+
+  btn.addEventListener('click', async () => {
+    if (!deferredPrompt) {
+      hint.textContent = 'A instalação automática não está disponível neste navegador. Use o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.';
+      return;
     }
-
-    // O app já está instalado: não pede novamente.
-    if(standalone){ abrirApp(); return; }
-
-    // Registra o Service Worker na raiz do PWA.
-    if('serviceWorker' in navigator){
-        navigator.serviceWorker.register('./SW-CLIENTE.js').catch(()=>{});
+    btn.disabled = true;
+    deferredPrompt.prompt();
+    try {
+      const result = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      if (result.outcome === 'accepted') {
+        hint.textContent = 'Instalação aceita. Finalizando e abrindo...';
+      } else {
+        btn.disabled = false;
+        btn.textContent = '📲 Instalar aplicativo';
+        hint.textContent = 'A instalação é necessária para continuar.';
+      }
+    } catch (_) {
+      deferredPrompt = null;
+      btn.disabled = false;
+      btn.textContent = '📲 Instalar aplicativo';
     }
+  });
 
-    window.addEventListener('beforeinstallprompt', function(e){
-        e.preventDefault();
-        deferredPrompt=e;
-        btn.disabled=false;
-        btn.textContent='📲 Instalar aplicativo';
-        hint.textContent='A instalação é necessária para continuar.';
-    });
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    setTimeout(() => {
+      if (isInstalled()) abrirDestino();
+    }, 150);
+  });
 
-    btn.addEventListener('click', async function(){
-        if(!deferredPrompt){
-            hint.textContent='Se o botão de instalação não aparecer, abra o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.';
-            return;
-        }
-        btn.disabled=true;
-        deferredPrompt.prompt();
-        const result=await deferredPrompt.userChoice;
-        deferredPrompt=null;
-        if(result.outcome==='accepted'){
-            hint.textContent='Instalação concluída. Abrindo...';
-        }else{
-            btn.disabled=false;
-            btn.textContent='📲 Instalar aplicativo';
-            hint.textContent='Você precisa instalar o aplicativo para continuar.';
-        }
-    });
+  // Detecta instalação manual pelo menu do navegador, mesmo que appinstalled não dispare.
+  const watcher = setInterval(() => {
+    if (isInstalled()) {
+      clearInterval(watcher);
+      abrirDestino();
+    }
+  }, 500);
 
-    window.addEventListener('appinstalled', function(){
-        deferredPrompt=null;
-        setTimeout(abrirApp,250);
-    });
-
-    // Caso o navegador não dispare beforeinstallprompt, mantém a tela de instalação.
-    setTimeout(function(){
-        if(!deferredPrompt){
-            btn.disabled=false;
-            btn.textContent='📲 Instalar aplicativo';
-            hint.textContent='Se a instalação não abrir automaticamente, use o menu do navegador para instalar o aplicativo.';
-        }
-    },3000);
+  setTimeout(() => {
+    if (!deferredPrompt && !isInstalled()) {
+      btn.disabled = false;
+      btn.textContent = '📲 Instalar aplicativo';
+      hint.textContent = 'Se a janela não abrir, use o menu do navegador para instalar o aplicativo. Nenhuma função será aberta antes da instalação.';
+    }
+  }, 3000);
 })();
 </script>
 </body>
