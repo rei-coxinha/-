@@ -1605,6 +1605,7 @@ window.onload = async () => {
 
                     // Inicia escuta em tempo real para tickets e debt
                     iniciarRealtimeCliente(savedPhone);
+                    iniciarAtualizacaoPeriodicaSaldo();
                     // Atualizar contador de notificações
                     setTimeout(() => renderHistoricoSaldo(), 500);
                     return;
@@ -1772,6 +1773,8 @@ async function auth() {
     carregarPrivacidade();
     carregarTemaSalvo();
     await loadProducts();
+    iniciarRealtimeCliente(phone);
+    iniciarAtualizacaoPeriodicaSaldo();
     btn.disabled = false; btn.textContent = "Entrar";
 
 
@@ -2064,6 +2067,59 @@ function setQty(id, val) {
 }
 
 // ===== CABEÇALHO =====
+// ===== ATUALIZAÇÃO PERIÓDICA DO SALDO =====
+let _intervaloAtualizacaoSaldo = null;
+let _atualizandoSaldo = false;
+
+async function atualizarSaldoDoBanco() {
+    if (!user || !user.phone || _atualizandoSaldo) return;
+    _atualizandoSaldo = true;
+    try {
+        const { data, error } = await sb
+            .from('clientes')
+            .select('debt')
+            .eq('phone', user.phone)
+            .maybeSingle();
+
+        if (error) {
+            console.warn('[Saldo] Erro ao atualizar:', error.message);
+            return;
+        }
+
+        if (data && data.debt !== undefined && data.debt !== null) {
+            const novoSaldo = Number(data.debt);
+            const saldoAnterior = Number(user.debt) || 0;
+
+            // Só redesenha se realmente mudou.
+            if (novoSaldo !== saldoAnterior) {
+                user.debt = novoSaldo;
+                atualizarCabecalho();
+                console.log('[Saldo] Atualizado automaticamente:', novoSaldo);
+            }
+        }
+    } catch (e) {
+        console.warn('[Saldo] Falha na atualização:', e.message);
+    } finally {
+        _atualizandoSaldo = false;
+    }
+}
+
+function iniciarAtualizacaoPeriodicaSaldo() {
+    if (_intervaloAtualizacaoSaldo) clearInterval(_intervaloAtualizacaoSaldo);
+
+    // Confere o saldo a cada 30 segundos enquanto o aplicativo estiver aberto.
+    _intervaloAtualizacaoSaldo = setInterval(() => {
+        if (!document.hidden) atualizarSaldoDoBanco();
+    }, 30000);
+
+    // Ao voltar para o aplicativo/aba, confere imediatamente.
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) atualizarSaldoDoBanco();
+    });
+
+    window.addEventListener('focus', () => atualizarSaldoDoBanco());
+}
+
 function atualizarCabecalho() {
     const primeiroNome = user.name.split(' ')[0];
     document.getElementById('hi').innerText = primeiroNome;
@@ -2939,6 +2995,37 @@ function fecharPainelControle() {
                 <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:15px;font-weight:800;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.8);">Meus pedidos</div>
             </div>
 
+            <!-- CARD: Pagamentos 💳 -->
+            <div onclick="window.location.href='./pix/'"
+                ontouchstart="this.style.transform='scale(0.95)';this.style.boxShadow='0 2px 8px rgba(0,210,255,0.3)'"
+                ontouchend="this.style.transform='scale(1)';this.style.boxShadow='0 6px 24px rgba(0,210,255,0.18)'"
+                style="cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.15s,box-shadow 0.15s;
+                background:linear-gradient(145deg,#071a24,#0b2633);
+                border:1px solid rgba(0,210,255,0.28);border-radius:22px;
+                padding:0;box-shadow:0 6px 24px rgba(0,210,255,0.15);position:relative;overflow:hidden;aspect-ratio:1;"
+                aria-label="Pagamentos">
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;filter:drop-shadow(0 4px 14px rgba(0,210,255,0.55));">💰</div>
+                <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:15px;font-weight:800;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.8);">Pagamentos</div>
+            </div>
+
+            <!-- CARD: WhatsApp -->
+            <div onclick="window.open('https://wa.me/5581996603348','_blank')"
+                ontouchstart="this.style.transform='scale(0.95)';this.style.boxShadow='0 2px 8px rgba(37,211,102,0.3)'"
+                ontouchend="this.style.transform='scale(1)';this.style.boxShadow='0 6px 24px rgba(37,211,102,0.2)'"
+                style="cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.15s;
+                background:linear-gradient(145deg,#0a2018,#0e2a1e);
+                border:1px solid rgba(37,211,102,0.25);border-radius:22px;
+                padding:0;
+                box-shadow:0 6px 24px rgba(37,211,102,0.2);position:relative;overflow:hidden;aspect-ratio:1;">
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80" style="filter:drop-shadow(0 4px 14px rgba(37,211,102,0.6));">
+                        <circle cx="40" cy="40" r="38" fill="#25d366"/>
+                        <path d="M40 12C24.5 12 12 24.5 12 40c0 5.1 1.4 9.9 3.8 14L12 68l14.4-3.7C30.2 66.7 35 68 40 68c15.5 0 28-12.5 28-28S55.5 12 40 12zm0 4c13.2 0 24 10.8 24 24S53.2 64 40 64c-4.6 0-8.9-1.3-12.5-3.6l-.9-.5-9.3 2.4 2.5-9-.6-.9C17.3 49 16 44.6 16 40c0-13.2 10.8-24 24-24zm-8.5 11c-.5 0-1.2.2-1.8.9-.6.7-2.4 2.3-2.4 5.6s2.5 6.5 2.8 6.9c.4.5 4.8 7.6 11.8 10.4 1.6.7 2.9 1.1 3.9 1.4 1.6.5 3.1.4 4.3.3 1.3-.2 4-1.6 4.6-3.2.6-1.6.6-2.9.4-3.2-.2-.3-.6-.4-1.2-.7-.6-.3-3.7-1.8-4.3-2-.6-.2-1-.3-1.4.3-.4.6-1.6 2-1.9 2.4-.4.4-.7.4-1.3.1-.6-.3-2.5-1-4.8-3-1.8-1.6-3-3.5-3.3-4.1-.4-.6 0-.9.3-1.2.3-.3.6-.7.9-1.1.3-.4.4-.6.6-1 .2-.4.1-.8-.1-1.1-.2-.3-1.4-3.4-1.9-4.6-.5-1.2-1-1-1.4-1h-1.3z" fill="white"/>
+                    </svg>
+                </div>
+                <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:15px;font-weight:800;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.8);">WhatsApp</div>
+            </div>
+
             <!-- CARD: Notificações -->
             <div onclick="abrirPainelSino()" style="cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.15s;
                 background:linear-gradient(145deg,#1a1400,#2a2000);
@@ -2975,24 +3062,6 @@ function fecharPainelControle() {
                 box-shadow:0 6px 24px rgba(255,107,107,0.15);position:relative;overflow:hidden;aspect-ratio:1;">
                 <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;filter:drop-shadow(0 4px 14px rgba(255,107,107,0.6));">🎮</div>
                 <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:15px;font-weight:800;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.8);">Jogos</div>
-            </div>
-
-            <!-- CARD: WhatsApp -->
-            <div onclick="window.open('https://wa.me/5581996603348','_blank')"
-                ontouchstart="this.style.transform='scale(0.95)';this.style.boxShadow='0 2px 8px rgba(37,211,102,0.3)'"
-                ontouchend="this.style.transform='scale(1)';this.style.boxShadow='0 6px 24px rgba(37,211,102,0.2)'"
-                style="cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.15s;
-                background:linear-gradient(145deg,#0a2018,#0e2a1e);
-                border:1px solid rgba(37,211,102,0.25);border-radius:22px;
-                padding:0;
-                box-shadow:0 6px 24px rgba(37,211,102,0.2);position:relative;overflow:hidden;aspect-ratio:1;">
-                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80" style="filter:drop-shadow(0 4px 14px rgba(37,211,102,0.6));">
-                        <circle cx="40" cy="40" r="38" fill="#25d366"/>
-                        <path d="M40 12C24.5 12 12 24.5 12 40c0 5.1 1.4 9.9 3.8 14L12 68l14.4-3.7C30.2 66.7 35 68 40 68c15.5 0 28-12.5 28-28S55.5 12 40 12zm0 4c13.2 0 24 10.8 24 24S53.2 64 40 64c-4.6 0-8.9-1.3-12.5-3.6l-.9-.5-9.3 2.4 2.5-9-.6-.9C17.3 49 16 44.6 16 40c0-13.2 10.8-24 24-24zm-8.5 11c-.5 0-1.2.2-1.8.9-.6.7-2.4 2.3-2.4 5.6s2.5 6.5 2.8 6.9c.4.5 4.8 7.6 11.8 10.4 1.6.7 2.9 1.1 3.9 1.4 1.6.5 3.1.4 4.3.3 1.3-.2 4-1.6 4.6-3.2.6-1.6.6-2.9.4-3.2-.2-.3-.6-.4-1.2-.7-.6-.3-3.7-1.8-4.3-2-.6-.2-1-.3-1.4.3-.4.6-1.6 2-1.9 2.4-.4.4-.7.4-1.3.1-.6-.3-2.5-1-4.8-3-1.8-1.6-3-3.5-3.3-4.1-.4-.6 0-.9.3-1.2.3-.3.6-.7.9-1.1.3-.4.4-.6.6-1 .2-.4.1-.8-.1-1.1-.2-.3-1.4-3.4-1.9-4.6-.5-1.2-1-1-1.4-1h-1.3z" fill="white"/>
-                    </svg>
-                </div>
-                <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:15px;font-weight:800;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.8);">WhatsApp</div>
             </div>
 
             <!-- CARD: Tema -->
@@ -3087,18 +3156,33 @@ function fecharPainelControle() {
 <script>
 // ===== HISTÓRICO DE PAGAMENTOS & FIADO (Supabase) =====
 
-function _fmtData(iso) {
-    if (!iso) return '—';
+function _fmtDataHora(iso) {
+    if (!iso) return { data: '—', hora: '—' };
     const dt = horasBRT(new Date(iso));
-    const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const diaSem = dias[dt.getDay()];
-    const dia    = String(dt.getDate()).padStart(2,'0');
-    const mes    = meses[dt.getMonth()];
-    const ano    = dt.getFullYear();
-    const hora   = String(dt.getHours()).padStart(2,'0');
-    const min    = String(dt.getMinutes()).padStart(2,'0');
-    return `${diaSem}, ${dia} ${mes} ${ano} · ${hora}:${min}`;
+    const dia = String(dt.getDate()).padStart(2,'0');
+    const mes = String(dt.getMonth() + 1).padStart(2,'0');
+    const ano = String(dt.getFullYear()).slice(-2);
+    const hora = String(dt.getHours()).padStart(2,'0');
+    const min = String(dt.getMinutes()).padStart(2,'0');
+    return { data: `${dia}/${mes}/${ano}`, hora: `${hora}:${min}` };
+}
+
+function _corDoEmoji(emoji) {
+    const e = emoji || '';
+    if (/❌|⛔|🚫|🔴|🛑/.test(e)) return '#ef4444';
+    if (/✅|🟢|💚|☑️|✔️/.test(e)) return '#22c55e';
+    if (/👑|💛|💰|🟡|⭐|🌟|⚠️|⚡/.test(e)) return '#f1c40f';
+    if (/♻️|🟠|🟧|🔶/.test(e)) return '#f39c12';
+    if (/🛒|📦|🛍️|🔵|💙|ℹ️/.test(e)) return '#3b82f6';
+    if (/❤️|❤|🔴|🩷|💗|💖|🌸/.test(e)) return '#ec4899';
+    if (/💜|🟣|🔮/.test(e)) return '#a855f7';
+    return '#64748b';
+}
+
+function _rgba(hex, alpha) {
+    const h = hex.replace('#','');
+    const n = parseInt(h, 16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
 }
 
 async function renderHistoricoSaldo() {
@@ -3158,11 +3242,16 @@ async function renderHistoricoSaldo() {
 
     (notifs || []).forEach(p => {
         const titulo = p.titulo || '';
+
+        // O emoji principal vem do próprio título salvo no banco.
+        // Assim o card usa exatamente o emoji enviado pela notificação,
+        // sem precisar cadastrar um emoji separado no banco.
+        const emojiDoBanco = (titulo.match(/(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)/u) || [])[0] || '';
         const isReembolso = titulo.includes('Reembolso') || titulo.includes('💰 Reembolso');
         const isCancelado = titulo.includes('Cancelado') || titulo.includes('❌');
         const isPagamento = titulo.includes('Pagamento') || titulo.includes('👑');
 
-        let icone = '🔔';
+        let icone = emojiDoBanco || '🔔';
         let cardBg = 'rgba(255,255,255,0.06)';
         let cardBorda = 'rgba(255,255,255,0.12)';
         let iconeBg = '#555';
@@ -3170,34 +3259,43 @@ async function renderHistoricoSaldo() {
         let badgeCor = '#555';
 
         if (isReembolso || isCancelado) {
-            icone = '♻️';
+            // Só usa um fallback se a notificação não trouxe emoji no título.
+            if (!emojiDoBanco) icone = isCancelado ? '❌' : '♻️';
             cardBg = 'rgba(243,156,18,0.12)';
             cardBorda = 'rgba(243,156,18,0.35)';
             iconeBg = '#f39c12';
             badge = isCancelado ? 'CANCELADO' : 'REEMBOLSO';
             badgeCor = '#f39c12';
         } else if (isPagamento) {
-            icone = '👑';
+            if (!emojiDoBanco) icone = '👑';
             cardBg = 'rgba(255,215,0,0.10)';
             cardBorda = 'rgba(255,215,0,0.30)';
             iconeBg = '#f1c40f';
             badge = 'PAGO';
             badgeCor = '#f1c40f';
-        } else if (titulo.includes('✅') || titulo.includes('Confirmado')) {
-            icone = '✅';
+        } else if (titulo.includes('Confirmado')) {
+            if (!emojiDoBanco) icone = '✅';
             cardBg = 'rgba(37,211,102,0.12)';
             cardBorda = 'rgba(37,211,102,0.35)';
             iconeBg = '#25d366';
             badge = 'CONFIRMADO';
             badgeCor = '#25d366';
         } else if (titulo.includes('novo Pedido') || titulo.includes('👩🏼‍💻')) {
-            icone = '🛒';
+            if (!emojiDoBanco) icone = '🛒';
             cardBg = 'rgba(0,153,255,0.10)';
             cardBorda = 'rgba(0,153,255,0.30)';
             iconeBg = '#0099ff';
             badge = 'PEDIDO';
             badgeCor = '#0099ff';
         }
+
+        // A aparência da notificação acompanha a cor do emoji principal.
+        // O emoji continua vindo do título da notificação; a cor é calculada aqui.
+        const corEmoji = _corDoEmoji(icone);
+        cardBg = _rgba(corEmoji, 0.12);
+        cardBorda = _rgba(corEmoji, 0.38);
+        iconeBg = corEmoji;
+        badgeCor = corEmoji;
 
         itens.push({
             id: String(p.id),
@@ -3276,13 +3374,23 @@ async function renderHistoricoSaldo() {
             -webkit-backdrop-filter: blur(24px);
             border: 1px solid ${item.cardBorda};
             border-radius:22px;
-            padding:16px 16px;
+            padding:16px 16px 16px 16px;
             display:flex; gap:14px; align-items:center;
+            min-height:112px;
             position:relative; z-index:1;
             will-change:transform;
             box-shadow: 0 4px 24px rgba(0,0,0,0.25);
         `;
+        const dtCard = _fmtDataHora(item.data);
         card.innerHTML = `
+            <div style="
+                position:absolute;top:11px;right:14px;
+                font-size:10px;font-weight:800;
+                color:rgba(255,255,255,0.68);
+                letter-spacing:.2px;
+                white-space:nowrap;
+                text-shadow:0 1px 4px rgba(0,0,0,.5);
+            ">${dtCard.data} · ${dtCard.hora}</div>
             <div style="
                 width:52px; height:52px; flex-shrink:0;
                 border-radius:16px;
@@ -3292,9 +3400,8 @@ async function renderHistoricoSaldo() {
                 box-shadow:0 6px 18px ${item.iconeBg}55;
             ">${item.icone}</div>
             <div style="flex:1;min-width:0;">
-                <div style="font-size:15px;font-weight:900;color:#ffffff;margin-bottom:4px;letter-spacing:-0.2px;text-shadow:0 1px 8px rgba(0,0,0,0.6),0 0 20px rgba(255,255,255,0.15);">${item.titulo}</div>
-                <div style="font-size:12px;color:rgba(255,255,255,0.75);display:flex;align-items:center;gap:4px;text-shadow:0 1px 4px rgba(0,0,0,0.5);">🕐 ${_fmtData(item.data)}</div>
-                ${item.sub ? `<div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,0.5);">${item.sub}</div>` : ''}
+                <div style="font-size:15px;font-weight:900;color:#ffffff;margin-bottom:4px;letter-spacing:-0.2px;text-shadow:0 1px 8px rgba(0,0,0,0.6),0 0 20px rgba(255,255,255,0.15);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;line-height:1.25;">${item.titulo}</div>
+                ${item.sub ? `<div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:4px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;line-height:1.3;text-shadow:0 1px 4px rgba(0,0,0,0.5);">${item.sub}</div>` : ''}
             </div>
             <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
                 <div style="font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;color:white;background:${item.badgeCor};letter-spacing:0.5px;box-shadow:0 2px 8px ${item.badgeCor}66;text-shadow:0 1px 4px rgba(0,0,0,0.4);">${item.badge}</div>
