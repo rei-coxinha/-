@@ -3583,6 +3583,21 @@ async function registrarPushCliente(phone) {
     const deviceId = obterDeviceIdPush();
     console.log('[Push] Device ID:', deviceId);
 
+    // Verifica permissão atual antes de pedir
+    const permissaoAtual = Notification.permission;
+
+    if (permissaoAtual === 'denied') {
+        // Bloqueado pelo usuário: mostra instrução para desbloquear nas configurações
+        mostrarModalNotifBloqueada();
+        return;
+    }
+
+    if (permissaoAtual === 'default') {
+        // Ainda não decidiu (ou dispensou antes): mostra modal próprio explicando
+        const aceitou = await mostrarModalPedirNotif();
+        if (!aceitou) return;
+    }
+
     try {
         const reg = await navigator.serviceWorker.register('./SW-CLIENTE.js');
         await navigator.serviceWorker.ready;
@@ -3712,6 +3727,75 @@ async function registrarPushCliente(phone) {
 
 
 
+
+// ===== MODAIS DE NOTIFICAÇÃO =====
+
+function mostrarModalPedirNotif() {
+    return new Promise(function(resolve) {
+        var modal = document.getElementById('modalNotifPedir');
+        if (!modal) { resolve(false); return; }
+        modal.style.display = 'flex';
+        requestAnimationFrame(function(){
+            modal.style.opacity = '1';
+            modal.querySelector('.modal-notif-card').style.transform = 'translateY(0) scale(1)';
+        });
+        document.getElementById('btnNotifAceitar').onclick = function() {
+            fecharModalNotif('modalNotifPedir');
+            resolve(true);
+        };
+        document.getElementById('btnNotifRecusar').onclick = function() {
+            fecharModalNotif('modalNotifPedir');
+            resolve(false);
+        };
+    });
+}
+
+function mostrarModalNotifBloqueada() {
+    var modal = document.getElementById('modalNotifBloqueada');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    requestAnimationFrame(function(){
+        modal.style.opacity = '1';
+        modal.querySelector('.modal-notif-card').style.transform = 'translateY(0) scale(1)';
+    });
+    document.getElementById('btnNotifBloqueadaOk').onclick = function() {
+        fecharModalNotif('modalNotifBloqueada');
+    };
+}
+
+function fecharModalNotif(id) {
+    var modal = document.getElementById(id);
+    if (!modal) return;
+    modal.style.opacity = '0';
+    modal.querySelector('.modal-notif-card').style.transform = 'translateY(30px) scale(0.95)';
+    setTimeout(function(){ modal.style.display = 'none'; }, 320);
+}
+
+// ===== FIM MODAIS DE NOTIFICAÇÃO =====
 </script>
+
+
+<!-- ===== MODAL: PEDIR NOTIFICAÇÃO ===== -->
+<div id="modalNotifPedir" style="display:none;opacity:0;position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,0.72);align-items:flex-end;justify-content:center;transition:opacity 0.3s;padding:0 0 28px;">
+    <div class="modal-notif-card" style="width:min(420px,94vw);background:#1a1818;border-radius:26px;padding:28px 22px 22px;text-align:center;transform:translateY(40px) scale(0.95);transition:transform 0.35s cubic-bezier(0.34,1.2,0.64,1);box-shadow:0 -8px 40px rgba(0,0,0,0.5);">
+        <div style="font-size:48px;margin-bottom:12px;">🔔</div>
+        <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:8px;">Ativar notificações?</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:24px;">Avise quando seu pedido sair para entrega e quando chegar pagamentos. Nada de spam — só o que importa.</div>
+        <button id="btnNotifAceitar" style="width:100%;padding:15px;border:0;border-radius:16px;background:linear-gradient(135deg,#1aad52,#25d366);color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;-webkit-tap-highlight-color:transparent;">✅ Sim, quero ser avisado</button>
+        <button id="btnNotifRecusar" style="width:100%;padding:13px;border:0;border-radius:16px;background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.45);font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;">Agora não</button>
+    </div>
+</div>
+<!-- ===== FIM MODAL: PEDIR NOTIFICAÇÃO ===== -->
+
+<!-- ===== MODAL: NOTIFICAÇÃO BLOQUEADA ===== -->
+<div id="modalNotifBloqueada" style="display:none;opacity:0;position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,0.72);align-items:flex-end;justify-content:center;transition:opacity 0.3s;padding:0 0 28px;">
+    <div class="modal-notif-card" style="width:min(420px,94vw);background:#1a1818;border-radius:26px;padding:28px 22px 22px;text-align:center;transform:translateY(40px) scale(0.95);transition:transform 0.35s cubic-bezier(0.34,1.2,0.64,1);box-shadow:0 -8px 40px rgba(0,0,0,0.5);">
+        <div style="font-size:48px;margin-bottom:12px;">🔕</div>
+        <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:8px;">Notificações bloqueadas</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6;margin-bottom:24px;">Você bloqueou as notificações antes. Para reativar, abra as <strong style="color:rgba(255,255,255,0.8);">Configurações do celular → Apps → O Rei da Coxinha → Notificações</strong> e ative.</div>
+        <button id="btnNotifBloqueadaOk" style="width:100%;padding:15px;border:0;border-radius:16px;background:rgba(255,255,255,0.1);color:#fff;font-size:15px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;">Entendi</button>
+    </div>
+</div>
+<!-- ===== FIM MODAL: NOTIFICAÇÃO BLOQUEADA ===== -->
 
 </html>
