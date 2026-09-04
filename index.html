@@ -98,6 +98,16 @@
         return false;
     }
 
+    /*
+     * PWA somente para Android.
+     * iPhone/iPad e outros dispositivos entram direto no cardápio,
+     * sem tela/botão de instalação.
+     */
+    if(!/Android/i.test(navigator.userAgent)){
+        abrirApp();
+        return;
+    }
+
     /* Executa a verificação imediatamente */
     if(verificarInstalacao()) return;
 

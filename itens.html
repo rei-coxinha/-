@@ -3,6 +3,10 @@
 <head>
 <script>
 (function(){
+  /* A instalação PWA é exigida somente no Android.
+     iPhone/iPad e outros dispositivos seguem direto para a página. */
+  if(!/Android/i.test(navigator.userAgent)) return;
+
   var K='pwa_instalado';
   var sa=window.matchMedia('(display-mode:standalone)').matches||navigator.standalone===true;
   if(sa){localStorage.setItem(K,'1');return;}
