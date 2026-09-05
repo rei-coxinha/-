@@ -186,32 +186,15 @@
     }
 
     /* ── ROTEAMENTO PRINCIPAL ── */
-    setTimeout(function(){
-        status.textContent = 'Abrindo...';
+    /* Redireciona imediatamente — sem delay.
+       A animação só fica visível se o carregamento da próxima página demorar. */
+    var standalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
 
-        if(!/Android/i.test(navigator.userAgent)){
-            redirecionar(resolverDestino());
-            return;
-        }
+    if(standalone) localStorage.setItem(INSTALLED_KEY, '1');
 
-        var standalone =
-            window.matchMedia('(display-mode: standalone)').matches ||
-            window.navigator.standalone === true;
-
-        if(standalone){
-            localStorage.setItem(INSTALLED_KEY, '1');
-            redirecionar(resolverDestino());
-            return;
-        }
-
-        if(localStorage.getItem(INSTALLED_KEY) === '1'){
-            redirecionar(resolverDestino());
-            return;
-        }
-
-        redirecionar(resolverDestino());
-
-    }, 900);
+    redirecionar(resolverDestino());
 
 })();
 </script>
