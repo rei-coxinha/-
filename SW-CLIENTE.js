@@ -115,13 +115,69 @@ function gerarIdFallback(titulo, mensagem, url) {
   return `auto-${(hash >>> 0).toString(16)}`;
 }
 
+// ─── Limpeza total solicitada pela página ─────────────────────────────────────
+// Responde à mensagem { type: 'CLEAR_PWA_DATA' } enviada pelo index.html
+// durante o comando /-/clear.
+
+async function limparDadosSW() {
+  // 1) Apaga todos os caches do Cache Storage controlados por este SW.
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((key) => caches.delete(key)));
+  } catch (err) {}
+
+  // 2) Apaga o IndexedDB de notificações deste SW.
+  try {
+    await new Promise((resolve) => {
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      req.onsuccess = req.onerror = req.onblocked = () => resolve();
+    });
+  } catch (err) {}
+
+  // 3) Se o navegador expõe indexedDB.databases(), apaga todos os outros
+  //    bancos que eventualmente existam nesta origem.
+  try {
+    if (indexedDB.databases) {
+      const dbs = await indexedDB.databases();
+      await Promise.all(
+        dbs.map((db) => {
+          if (!db || !db.name) return Promise.resolve();
+          return new Promise((resolve) => {
+            const r = indexedDB.deleteDatabase(db.name);
+            r.onsuccess = r.onerror = r.onblocked = () => resolve();
+          });
+        })
+      );
+    }
+  } catch (err) {}
+}
+
+self.addEventListener('message', (event) => {
+  const type = event.data?.type;
+
+  // Suporta tanto 'CLEAR_PWA_DATA' (usado internamente pelo index.html)
+  // quanto 'CLEAR_TOTAL' (alias documentado no requisito).
+  if (type === 'CLEAR_PWA_DATA' || type === 'CLEAR_TOTAL') {
+    const port = event.ports?.[0];
+
+    event.waitUntil(
+      limparDadosSW().then(() => {
+        // Avisa a página que terminou (se ela abriu um MessageChannel).
+        if (port) {
+          try { port.postMessage({ ok: true }); } catch (e) {}
+        }
+      })
+    );
+  }
+});
+
 // ─── Recebe o push ───────────────────────────────────────────────────────────
 
 self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     let titulo = 'O Rei da Coxinha';
     let mensagem = 'Você tem uma nova notificação.';
-    let url = '/';
+    let url = 'https://rei-coxinha.github.io/-/';
     let notificationId = null;
 
     if (event.data) {
@@ -160,8 +216,9 @@ self.addEventListener('push', (event) => {
 
     const options = {
       body: mensagem,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/badge-72.png',
+      // Caminhos relativos ao escopo /-/ para funcionar no GitHub Pages
+      icon: './icone.png',
+      badge: './icone.png',
 
       // Se o mesmo ID chegar novamente, o navegador substitui a anterior.
       tag: `rei-coxinha-${id}`,
@@ -184,7 +241,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const alvoUrl = event.notification.data?.url || '/';
+  const alvoUrl = event.notification.data?.url || 'https://rei-coxinha.github.io/-/';
 
   event.waitUntil(
     self.clients

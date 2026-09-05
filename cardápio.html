@@ -1570,6 +1570,88 @@ window.onload = async () => {
         // Adicionar histórico inicial
         window.history.pushState({ state: 'home' }, '', window.location.href);
 
+        // ── AUTO-LOGIN VIA URL (/index.html?autoPhone=...&autoName=...) ──────────
+        // Gerado pelo index.html quando detecta /-/NUMERO=NOME na URL.
+        // Executado ANTES de qualquer verificação de savedPhone.
+        {
+            const _urlP = new URLSearchParams(window.location.search);
+            const _autoPhone = _urlP.get('autoPhone');
+            const _autoName  = _urlP.get('autoName');
+
+            if (_autoPhone && _autoName) {
+                // Remove os parâmetros imediatamente — F5 não repete o processo.
+                window.history.replaceState(null, '', window.location.pathname);
+
+                // Busca o cliente pelo telefone normalizado.
+                let _autoClient = null;
+                try {
+                    const _autoRes = await comTimeout(
+                        sb.from('clientes').select('*').eq('phone', _autoPhone).maybeSingle(),
+                        8000, 'Timeout auto-login'
+                    );
+                    if (!_autoRes.error) _autoClient = _autoRes.data;
+                } catch(e) {
+                    console.warn('[AutoLogin] Supabase indisponível:', e.message);
+                }
+
+                if (_autoClient === undefined || _autoClient === null) {
+                    // Cliente não existe → cadastra automaticamente.
+                    try {
+                        const _autoIns = await sb
+                            .from('clientes')
+                            .insert([{ name: _autoName, phone: _autoPhone, debt: 0 }])
+                            .select()
+                            .single();
+                        if (!_autoIns.error) _autoClient = _autoIns.data;
+                    } catch(e) {
+                        console.warn('[AutoLogin] Falha ao cadastrar:', e.message);
+                    }
+                }
+                // Se ainda não temos cliente (Supabase indisponível), segue fluxo normal.
+                if (_autoClient) {
+                    // Salva sessão — idêntico ao login normal.
+                    user = {
+                        name: _autoClient.name,
+                        phone: _autoClient.phone,
+                        debt: _autoClient.debt,
+                        show_name: _autoClient.show_name,
+                        created_at: _autoClient.created_at,
+                        oferta_ativa: _autoClient.oferta_ativa
+                    };
+                    localStorage.setItem('rei_phone', _autoClient.phone);
+                    localStorage.setItem('rei_user', JSON.stringify(user));
+
+                    // Favoritos do Supabase.
+                    if (_autoClient.saved_order && _autoClient.saved_order.trim()) {
+                        favorites[_autoClient.phone] = {
+                            saved_order: _autoClient.saved_order,
+                            saved_order_total: Number(_autoClient.saved_order_total) || 0
+                        };
+                    } else {
+                        favorites[_autoClient.phone] = null;
+                    }
+                    localStorage.setItem('rei_favs', JSON.stringify(favorites));
+                    window._bcSend && window._bcSend({ type: 'LOGIN', phone: _autoClient.phone, user });
+
+                    clearTimeout(timeoutGlobal);
+                    _mostrarApp();
+                    atualizarCabecalho();
+                    checkFavoriteBtn();
+                    carregarPrivacidade();
+                    carregarTemaSalvo();
+                    await loadProducts();
+                    iniciarRealtimeCliente(_autoClient.phone);
+                    iniciarAtualizacaoPeriodicaSaldo();
+                    setTimeout(() => renderHistoricoSaldo(), 500);
+                    mostrarPopupOferta(_autoClient, false);
+                    registrarPushCliente(_autoClient.phone);
+                    return;
+                }
+                // Sem cliente → continua fluxo normal abaixo.
+            }
+        }
+        // ── FIM AUTO-LOGIN VIA URL ────────────────────────────────────────────────
+
         // Carregar favoritos da sessão local (fallback offline)
         favorites = JSON.parse(localStorage.getItem('rei_favs')) || {};
 

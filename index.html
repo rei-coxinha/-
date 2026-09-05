@@ -40,80 +40,233 @@
 
 <script>
 (function(){
-    var APP = './card\u00e1pio.html';
+    var APP = './cardápio.html';
     var INSTALLED_KEY = 'pwa_instalado';
 
-    var btn         = document.getElementById('installButton');
-    var hint        = document.getElementById('installHint');
-    var installGate = document.getElementById('installGate');
-    var loadingGate = document.getElementById('loadingGate');
-    var deferredPrompt = null;
+    /* ─────────────────────────────────────────────────────────────────
+       NORMALIZA TELEFONE
+       Pega os últimos 8 dígitos e forma "819" + 8 dígitos.
+       ───────────────────────────────────────────────────────────────── */
+    function normalizarTelefone(raw) {
+        var digitos = raw.replace(/\D/g, '');
+        if (digitos.length < 8) return null;
+        var ultimos8 = digitos.slice(-8);
+        return '819' + ultimos8;
+    }
 
-    /* Resolve destino: usa ?next= se existir, senão abre o cardápio */
-    function resolverDestino(){
+    /* ─────────────────────────────────────────────────────────────────
+       DETECTA COMANDO NA URL
+       Formatos tratados:
+         /-/clear            → limpeza total
+         /-/NUMERO=NOME      → login/cadastro automático
+       ───────────────────────────────────────────────────────────────── */
+    var caminho = window.location.pathname.replace(/\/+$/, '');
+
+    /* ── COMANDO: /-/clear ──────────────────────────────────────────── */
+    if (caminho === '/-/clear') {
+        document.title = 'Limpando aplicativo...';
+        limparTudoPWA().finally(function(){
+            setTimeout(function(){
+                window.location.replace('https://rei-coxinha.github.io/-/');
+            }, 400);
+        });
+        return; // para a execução aqui
+    }
+
+    /* ── COMANDO: /-/NUMERO=NOME ────────────────────────────────────── */
+    // Extrai o segmento após /-/
+    var segmento = '';
+    var matchSeg = caminho.match(/^\/-\/(.+)$/);
+    if (matchSeg) segmento = matchSeg[1];
+
+    var autoPhone = null;
+    var autoName  = null;
+
+    if (segmento && segmento.indexOf('=') !== -1) {
+        var partes = segmento.split('=');
+        var rawNum = partes[0].trim();
+        var rawNom = partes.slice(1).join('=').trim(); // suporte a "=" no nome
+
+        if (/^\d{8,}$/.test(rawNum) && rawNom.length > 0) {
+            var phoneNorm = normalizarTelefone(rawNum);
+            if (phoneNorm) {
+                autoPhone = phoneNorm;
+                autoName  = decodeURIComponent(rawNom);
+            }
+        }
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       LIMPEZA TOTAL PWA
+       ───────────────────────────────────────────────────────────────── */
+    async function limparTudoPWA() {
+        var resultados = [];
+
+        // 1) Storages da página
+        try { localStorage.clear();  resultados.push('localStorage');  } catch(e) {}
+        try { sessionStorage.clear(); resultados.push('sessionStorage'); } catch(e) {}
+
+        // 2) Fecha notificações
+        try {
+            if ('serviceWorker' in navigator) {
+                var regs = await navigator.serviceWorker.getRegistrations();
+                for (var i = 0; i < regs.length; i++) {
+                    try {
+                        var notifs = await regs[i].getNotifications();
+                        notifs.forEach(function(n){ try { n.close(); } catch(e){} });
+                    } catch(e) {}
+                }
+            }
+        } catch(e) {}
+
+        // 3) Pede ao SW para apagar o que ele controla
+        try {
+            if ('serviceWorker' in navigator) {
+                var regs2 = await navigator.serviceWorker.getRegistrations();
+                for (var i = 0; i < regs2.length; i++) {
+                    var reg = regs2[i];
+                    if (reg.active) {
+                        await new Promise(function(resolve){
+                            var channel = new MessageChannel();
+                            var done = false;
+                            var finish = function(){ if(done) return; done=true; resolve(); };
+                            channel.port1.onmessage = function(){ finish(); };
+                            try {
+                                reg.active.postMessage({ type: 'CLEAR_PWA_DATA' }, [channel.port2]);
+                            } catch(e) { finish(); }
+                            setTimeout(finish, 1500);
+                        });
+                    }
+                }
+                // 4) Desregistra os Service Workers
+                for (var j = 0; j < regs2.length; j++) {
+                    try { await regs2[j].unregister(); } catch(e) {}
+                }
+            }
+        } catch(e) {}
+
+        // 5) Apaga Cache Storage
+        try {
+            if ('caches' in window) {
+                var keys = await caches.keys();
+                await Promise.all(keys.map(function(key){ return caches.delete(key); }));
+                resultados.push('cacheStorage');
+            }
+        } catch(e) {}
+
+        // 6) Apaga IndexedDB
+        try {
+            if (window.indexedDB && indexedDB.databases) {
+                var dbs = await indexedDB.databases();
+                await Promise.all(dbs.map(function(db){
+                    if (!db || !db.name) return Promise.resolve();
+                    return new Promise(function(resolve){
+                        var request;
+                        try { request = indexedDB.deleteDatabase(db.name); } catch(e){ resolve(); return; }
+                        request.onsuccess = request.onerror = request.onblocked = function(){ resolve(); };
+                    });
+                }));
+                resultados.push('indexedDB');
+            }
+        } catch(e) {}
+
+        // 7) Cookies JS
+        try {
+            document.cookie.split(';').forEach(function(cookie){
+                var eq = cookie.indexOf('=');
+                var name = (eq >= 0 ? cookie.slice(0, eq) : cookie).trim();
+                if (name) {
+                    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+                    document.cookie = name + '=; Max-Age=0; path=/';
+                }
+            });
+        } catch(e) {}
+
+        return resultados;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────
+       DESTINO DO APP
+       ───────────────────────────────────────────────────────────────── */
+    function resolverDestino() {
+        // Se veio de ?next=
         var params = new URLSearchParams(window.location.search);
         var next = params.get('next');
-        if(next){
-            // next já é um path/URL relativo codificado
-            return decodeURIComponent(next);
+        if (next) return decodeURIComponent(next);
+
+        // Se veio de URL especial /-/NUMERO=NOME, repassa para cardápio
+        if (autoPhone && autoName) {
+            return './cardápio.html?autoPhone=' +
+                encodeURIComponent(autoPhone) +
+                '&autoName=' +
+                encodeURIComponent(autoName);
         }
+
         return APP;
     }
 
-    /* Abre o app imediatamente */
-    function abrirApp(){
-        loadingGate.classList.add('active');
-        installGate.style.display = 'none';
+    /* Abre o app */
+    function abrirApp() {
+        var loadingGate = document.getElementById('loadingGate');
+        var installGate = document.getElementById('installGate');
+        if (loadingGate) loadingGate.classList.add('active');
+        if (installGate) installGate.style.display = 'none';
         window.location.replace(resolverDestino());
     }
 
-    /*
-     * verificarInstalacao()
-     * Verificação 100% síncrona e local — sem chamadas de rede.
-     * Internet lenta não interfere: tudo vem do localStorage ou do
-     * display-mode, que são imediatos.
-     *
-     * Só volta para a tela de instalação se NENHUMA das duas flags
-     * confirmar que o app já foi instalado antes.
-     */
-    function verificarInstalacao(){
-        /* 1. Modo standalone — rodando como PWA instalado agora */
+    /* ─────────────────────────────────────────────────────────────────
+       VERIFICA INSTALAÇÃO
+       ───────────────────────────────────────────────────────────────── */
+    function verificarInstalacao() {
         var standalone =
             window.matchMedia('(display-mode: standalone)').matches ||
             window.navigator.standalone === true;
 
-        if(standalone){
+        if (standalone) {
             localStorage.setItem(INSTALLED_KEY, '1');
             abrirApp();
             return true;
         }
 
-        /* 2. Flag local — instalado em sessão anterior */
-        if(localStorage.getItem(INSTALLED_KEY) === '1'){
+        if (localStorage.getItem(INSTALLED_KEY) === '1') {
             abrirApp();
             return true;
         }
 
-        /* Não instalado: mostra tela de instalação */
         return false;
     }
 
-    /*
-     * PWA somente para Android.
-     * iPhone/iPad e outros dispositivos entram direto no cardápio,
-     * sem tela/botão de instalação.
-     */
-    if(!/Android/i.test(navigator.userAgent)){
+    /* ─────────────────────────────────────────────────────────────────
+       FLUXO PRINCIPAL
+       ───────────────────────────────────────────────────────────────── */
+
+    // Se há comando autoPhone/autoName e o app não está instalado no Android,
+    // ainda assim abre o cardápio direto (sem exigir instalação para o comando de URL).
+    // Para Android sem instalação + sem comando especial → exige instalação.
+    var isAndroid = /Android/i.test(navigator.userAgent);
+
+    // Não-Android: entra direto
+    if (!isAndroid) {
         abrirApp();
         return;
     }
 
-    /* Executa a verificação imediatamente */
-    if(verificarInstalacao()) return;
+    // Android com comando de URL especial: abre direto (não bloqueia no install)
+    if (autoPhone && autoName) {
+        abrirApp();
+        return;
+    }
 
-    /* A partir daqui só chega se o app NÃO estiver instalado */
+    // Android normal: verifica instalação
+    if (verificarInstalacao()) return;
 
-    if('serviceWorker' in navigator){
+    /* ── A partir daqui: Android sem instalação, sem comando especial ── */
+
+    var btn         = document.getElementById('installButton');
+    var hint        = document.getElementById('installHint');
+    var deferredPrompt = null;
+
+    if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./SW-CLIENTE.js').catch(function(){});
     }
 
@@ -121,25 +274,25 @@
         e.preventDefault();
         deferredPrompt = e;
         btn.disabled = false;
-        btn.textContent = '\uD83D\uDCF2 Instalar aplicativo';
-        hint.textContent = 'A instala\u00e7\u00e3o \u00e9 necess\u00e1ria para continuar.';
+        btn.textContent = '📲 Instalar aplicativo';
+        hint.textContent = 'A instalação é necessária para continuar.';
     });
 
     btn.addEventListener('click', async function(){
-        if(!deferredPrompt){
-            hint.textContent = 'Se o bot\u00e3o de instala\u00e7\u00e3o n\u00e3o aparecer, abra o menu do navegador e escolha \u201cInstalar aplicativo\u201d ou \u201cAdicionar \u00e0 tela inicial\u201d.';
+        if (!deferredPrompt) {
+            hint.textContent = 'Se o botão de instalação não aparecer, abra o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar à tela inicial".';
             return;
         }
         btn.disabled = true;
         deferredPrompt.prompt();
         var result = await deferredPrompt.userChoice;
         deferredPrompt = null;
-        if(result.outcome === 'accepted'){
-            hint.textContent = 'Instala\u00e7\u00e3o conclu\u00edda. Abrindo...';
+        if (result.outcome === 'accepted') {
+            hint.textContent = 'Instalação concluída. Abrindo...';
         } else {
             btn.disabled = false;
-            btn.textContent = '\uD83D\uDCF2 Instalar aplicativo';
-            hint.textContent = 'Voc\u00ea precisa instalar o aplicativo para continuar.';
+            btn.textContent = '📲 Instalar aplicativo';
+            hint.textContent = 'Você precisa instalar o aplicativo para continuar.';
         }
     });
 
@@ -149,14 +302,15 @@
         setTimeout(abrirApp, 250);
     });
 
-    /* Fallback: se beforeinstallprompt não disparar em 3 s */
+    // Fallback: beforeinstallprompt não disparou em 3 s
     setTimeout(function(){
-        if(!deferredPrompt && btn.disabled){
+        if (!deferredPrompt && btn.disabled) {
             btn.disabled = false;
-            btn.textContent = '\uD83D\uDCF2 Instalar aplicativo';
-            hint.textContent = 'Se a instala\u00e7\u00e3o n\u00e3o abrir automaticamente, use o menu do navegador para instalar o aplicativo.';
+            btn.textContent = '📲 Instalar aplicativo';
+            hint.textContent = 'Se a instalação não abrir automaticamente, use o menu do navegador para instalar o aplicativo.';
         }
     }, 3000);
+
 })();
 </script>
 </body>
