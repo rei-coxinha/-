@@ -1299,7 +1299,6 @@ window.onload = async () => {
 </div>
 <script>
 (function(){
-    var INSTALLED_KEY='pwa_instalado';
     var deferredPrompt=null;
     var overlay=document.getElementById('pwaOverlay');
     var card=document.getElementById('pwaCard');
@@ -1309,11 +1308,9 @@ window.onload = async () => {
     function mostrarPopup(){overlay.style.display='flex';requestAnimationFrame(function(){overlay.style.opacity='1';card.style.transform='translateY(0)';}); }
     function fecharPopup(){overlay.style.opacity='0';card.style.transform='translateY(100%)';setTimeout(function(){overlay.style.display='none';},380);}
     function deveVerificar(){
-        if(!/Android/i.test(navigator.userAgent))return false;
-
+        if(!/Android/i.test(navigator.userAgent)) return false;
         var standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
-        if(standalone){localStorage.setItem(INSTALLED_KEY,'1');return false;}
-        if(localStorage.getItem(INSTALLED_KEY)==='1')return false;
+        if(standalone) return false;
         return true;
     }
     if(!deveVerificar())return;
@@ -1329,7 +1326,6 @@ window.onload = async () => {
         if(result.outcome==='accepted'){hint.textContent='Instalando...';}
         else{btnInstalar.disabled=false;hint.textContent='Você pode instalar pelo menu do navegador a qualquer momento.';}
     });
-    window.addEventListener('appinstalled',function(){deferredPrompt=null;localStorage.setItem(INSTALLED_KEY,'1');fecharPopup();});
     btnFechar.addEventListener('click',fecharPopup);
     setTimeout(function(){if(!deferredPrompt){btnInstalar.disabled=false;btnInstalar.textContent='📲 Instalar aplicativo';hint.textContent='Use o menu do navegador para instalar.';}},3000);
 })();

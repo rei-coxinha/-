@@ -4061,7 +4061,6 @@ function fecharModalNotif(id) {
 
 <script>
 (function(){
-    var INSTALLED_KEY = 'pwa_instalado';
     var deferredPrompt = null;
 
     var overlay     = document.getElementById('pwaOverlay');
@@ -4085,14 +4084,9 @@ function fecharModalNotif(id) {
     }
 
     function deveVerificar(){
-        /* Só Android sem PWA instalado e sem login */
         if(!/Android/i.test(navigator.userAgent)) return false;
-
-        var standalone =
-            window.matchMedia('(display-mode: standalone)').matches ||
-            window.navigator.standalone === true;
-        if(standalone){ localStorage.setItem(INSTALLED_KEY,'1'); return false; }
-        if(localStorage.getItem(INSTALLED_KEY) === '1') return false;
+        var standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+        if(standalone) return false;
         return true;
     }
 
@@ -4136,7 +4130,6 @@ function fecharModalNotif(id) {
     /* Instalado */
     window.addEventListener('appinstalled', function(){
         deferredPrompt = null;
-        localStorage.setItem(INSTALLED_KEY, '1');
         fecharPopup();
     });
 

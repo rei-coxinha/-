@@ -93,7 +93,6 @@
 <script>
 (function(){
     var APP           = './card\u00e1pio.html';
-    var INSTALLED_KEY = 'pwa_instalado';
     var status        = document.getElementById('splashStatus');
     var btnClear      = document.getElementById('btnClear');
 
@@ -192,7 +191,6 @@
         window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true;
 
-    if(standalone) localStorage.setItem(INSTALLED_KEY, '1');
 
     redirecionar(resolverDestino());
 
