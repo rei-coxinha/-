@@ -109,7 +109,12 @@
         return window.location.pathname.replace(/\/+$/, '') || '/';
     }
     function isRotaClear(){
-        return /(?:^|\/)clear$/i.test(caminhoAtual());
+        var path = caminhoAtual();
+        var search = window.location.search;
+        var hash = window.location.hash;
+        return /(?:^|[\/=])clear$/i.test(path) ||
+               /[?&=]clear$/i.test(search) ||
+               /[#=]clear$/i.test(hash);
     }
     function obterLoginEspecialDaRota(){
         var base = caminhoAtual().split('/').filter(Boolean).pop() || '';
