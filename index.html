@@ -63,7 +63,9 @@
     var caminho = window.location.pathname.replace(/\/+$/, '');
 
     /* ── COMANDO: /-/clear ──────────────────────────────────────────── */
-    if (caminho === '/-/clear') {
+    // Também aceita ?_cmd=clear vindo do 404.html
+    var _cmdParam = new URLSearchParams(window.location.search).get('_cmd');
+    if (caminho === '/-/clear' || _cmdParam === 'clear') {
         document.title = 'Limpando aplicativo...';
         limparTudoPWA().finally(function(){
             setTimeout(function(){
