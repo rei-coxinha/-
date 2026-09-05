@@ -1618,8 +1618,6 @@ async function fazerPedido() {
     confirmarEstado('salvando');
 
     try {
-        if (!navigator.onLine) throw new Error('Sem conexão com a internet.');
-
         const { data: pedidoInserido, error: errPedido } = await sb.from('pedidos').insert({
             customer_name:  user.name,
             customer_phone: user.phone,
