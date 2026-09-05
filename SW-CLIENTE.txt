@@ -115,13 +115,44 @@ function gerarIdFallback(titulo, mensagem, url) {
   return `auto-${(hash >>> 0).toString(16)}`;
 }
 
+// ─── Limpeza de emergência solicitada pela página ────────────────────────────
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'CLEAR_ALL') return;
+
+  event.waitUntil((async () => {
+    try {
+      const dbs = [DB_NAME];
+      await Promise.all(dbs.map((name) => new Promise((resolve) => {
+        try {
+          const req = indexedDB.deleteDatabase(name);
+          req.onsuccess = req.onerror = req.onblocked = () => resolve();
+        } catch (_) { resolve(); }
+      })));
+    } catch (_) {}
+
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    } catch (_) {}
+
+    try {
+      const notifications = await self.registration.getNotifications();
+      notifications.forEach((notification) => notification.close());
+    } catch (_) {}
+
+    try {
+      event.source?.postMessage({ type: 'CLEAR_ALL_DONE' });
+    } catch (_) {}
+  })());
+});
+
 // ─── Recebe o push ───────────────────────────────────────────────────────────
 
 self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     let titulo = 'O Rei da Coxinha';
     let mensagem = 'Você tem uma nova notificação.';
-    let url = '/';
+    let url = self.registration.scope;
     let notificationId = null;
 
     if (event.data) {
@@ -160,8 +191,8 @@ self.addEventListener('push', (event) => {
 
     const options = {
       body: mensagem,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/badge-72.png',
+      icon: new URL('icons/icon-192.png', self.registration.scope).href,
+      badge: new URL('icons/badge-72.png', self.registration.scope).href,
 
       // Se o mesmo ID chegar novamente, o navegador substitui a anterior.
       tag: `rei-coxinha-${id}`,
@@ -184,7 +215,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const alvoUrl = event.notification.data?.url || '/';
+  const alvoUrl = event.notification.data?.url || self.registration.scope;
 
   event.waitUntil(
     self.clients

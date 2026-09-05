@@ -2,7 +2,15 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="icone.png">
+<link rel="apple-touch-icon" href="icone.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0c0b0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jogos">
 <style>
   #rotateOverlay {
     display: none;
@@ -560,6 +568,8 @@ header {
 .game-card.minado::after { content:''; position:absolute; top:-50%; left:-60%; width:40%; height:200%; background:linear-gradient(105deg,transparent,rgba(255,120,0,0.08),transparent); transform:skewX(-20deg); animation:shine 4s ease-in-out infinite; }
 .game-card.coxinhaman { border-color:rgba(255,107,0,0.5); }
 .game-card.coxinhaman::after { content:''; position:absolute; top:-50%; left:-60%; width:40%; height:200%; background:linear-gradient(105deg,transparent,rgba(255,107,0,0.08),transparent); transform:skewX(-20deg); animation:shine 4.5s ease-in-out infinite; }
+.game-card.cobrinha { border-color:rgba(77,255,136,0.5); }
+.game-card.cobrinha::after { content:''; position:absolute; top:-50%; left:-60%; width:40%; height:200%; background:linear-gradient(105deg,transparent,rgba(77,255,136,0.08),transparent); transform:skewX(-20deg); animation:shine 4.2s ease-in-out infinite; }
 
 /* ══ COXINHA-MAN — TELA CHEIA PURA ══ */
 #screenCoxinhaMan {
@@ -1084,136 +1094,13 @@ header {
         <div style="margin-top:8px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:900;color:#4dff88;">✅ Grátis</div>
       </div>
 
-      <!-- JOGOS EXTERNOS com capa -->
-      <div class="game-card cover-card" style="border-color:rgba(255,100,100,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/stair-race-3d','🏃 Stair Race 3D')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/StairRace3dTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Stair Race 3D">
-        <div class="game-card-cover-fallback" style="display:none;">🏃</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Stair Race 3D</div>
-          <div class="game-card-desc">Suba as escadas mais rápido!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
+      <div class="game-card cobrinha" onclick="abrirCobrinha()">
+        <span class="game-card-emoji">🐍</span>
+        <div class="game-card-name">Coxinha da Cobrinha</div>
+        <div class="game-card-desc">Coma os ingredientes e cresça sem bater!</div>
+        <div style="margin-top:8px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:900;color:#4dff88;">✅ Grátis</div>
       </div>
 
-      <div class="game-card cover-card" style="border-color:rgba(200,80,255,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/knife-rain','🔪 Knife Rain')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/KnifeRainTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Knife Rain">
-        <div class="game-card-cover-fallback" style="display:none;">🔪</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Knife Rain</div>
-          <div class="game-card-desc">Jogue as facas com precisão!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(0,200,100,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/3d-free-kick','⚽ 3D Free Kick')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/3dFreeKickTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="3D Free Kick">
-        <div class="game-card-cover-fallback" style="display:none;">⚽</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">3D Free Kick</div>
-          <div class="game-card-desc">Chute a falta e marque gols!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(255,180,80,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/my-little-dragon','🐉 My Little Dragon')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/MyLittleDragonTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="My Little Dragon">
-        <div class="game-card-cover-fallback" style="display:none;">🐉</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">My Little Dragon</div>
-          <div class="game-card-desc">Cuide do seu dragãozinho!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(80,180,255,0.5);" onclick="abrirJogoExterno('https://yell0wsuit.page/assets/games/subway-surfers/index.html','🛹 Subway Surfers')">
-        <img class="game-card-cover-img" src="data:image/jpeg;base64,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" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Subway Surfers">
-        <div class="game-card-cover-fallback" style="display:none;">🛹</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Subway Surfers</div>
-          <div class="game-card-desc">Corra e desvie dos trens!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(255,120,60,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/bouncemasters','🐧 Bouncemasters')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/BouncemastersTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Bouncemasters">
-        <div class="game-card-cover-fallback" style="display:none;">🐧</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Bouncemasters</div>
-          <div class="game-card-desc">Arremesse o pinguim longe!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(255,220,0,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/emoji-fun','😂 Emoji Fun')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/EmojiFunTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Emoji Fun">
-        <div class="game-card-cover-fallback" style="display:none;">😂</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Emoji Fun</div>
-          <div class="game-card-desc">Combine os emojis!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(255,80,80,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/crazy-hen-level','🐔 Crazy Hen')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/CrazyHenLevelTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Crazy Hen">
-        <div class="game-card-cover-fallback" style="display:none;">🐔</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Crazy Hen</div>
-          <div class="game-card-desc">Controle a galinha maluca!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(100,220,255,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/pengu-slide','🧊 Pengu Slide')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/PenguSlideTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Pengu Slide">
-        <div class="game-card-cover-fallback" style="display:none;">🧊</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Pengu Slide</div>
-          <div class="game-card-desc">Deslize pelo gelo sem cair!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(255,150,0,0.5);" onclick="abrirJogoExterno('https://yell0wsuit.page/assets/games/OmNomRun/index.html','🐸 Om Nom Run')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/OmNomRunTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Om Nom Run">
-        <div class="game-card-cover-fallback" style="display:none;">🐸</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Om Nom Run</div>
-          <div class="game-card-desc">Corra e colete doces!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(180,100,255,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/cut-the-rope-2','🍬 Cut the Rope 2')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/CutTheRope2Teaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Cut the Rope 2">
-        <div class="game-card-cover-fallback" style="display:none;">🍬</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Cut the Rope 2</div>
-          <div class="game-card-desc">Corte as cordas e alimente!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(0,200,180,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/table-tennis-world-tour','🏓 Tênis de Mesa')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/TableTennisWorldTourTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Table Tennis World Tour">
-        <div class="game-card-cover-fallback" style="display:none;">🏓</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Tênis de Mesa</div>
-          <div class="game-card-desc">Dispute o torneio mundial!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
-
-      <div class="game-card cover-card" style="border-color:rgba(100,180,255,0.5);" onclick="abrirJogoExterno('https://play.famobi.com/color-water-sort-3d','🎨 Color Water Sort')">
-        <img class="game-card-cover-img" src="https://img.cdn.famobi.com/portal/html5games/images/tmp/ColorWaterSort3dTeaser.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" alt="Color Water Sort">
-        <div class="game-card-cover-fallback" style="display:none;">🎨</div>
-        <div class="game-card-cover-body">
-          <div class="game-card-name">Color Water Sort</div>
-          <div class="game-card-desc">Organize as cores nos tubos!</div>
-          <div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(100,255,150,0.1);border:1px solid rgba(100,255,150,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:900;color:#4dff88;width:fit-content;">✅ Grátis</div>
-        </div>
-      </div>
       </div>
     </div>
 
@@ -1586,7 +1473,33 @@ header {
 
 </div>
 
-<!-- ===== JOGO DO COPO FULLSCREEN ===== -->
+<!-- ===== COXINHA DA COBRINHA FULLSCREEN ===== -->
+<div id="screenCobrinha" class="game-fullscreen" style="background:#111;">
+
+  <!-- Topo -->
+  <div class="fs-topbar">
+    <button class="fs-back-btn" ontouchstart="event.preventDefault();voltarLobbyCobrinha()" onclick="voltarLobbyCobrinha()">&lt;</button>
+    <span class="fs-title">🐍 Coxinha da Cobrinha</span>
+    <div class="mem-stats">
+      <div class="mem-stat"><span class="mem-stat-label">Pontos</span><span class="mem-stat-val" id="cobraScore">0</span></div>
+      <div class="mem-stat"><span class="mem-stat-label">Recorde</span><span class="mem-stat-val" id="cobraBest">0</span></div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <canvas id="cobraCanvas" style="position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;"></canvas>
+
+  <!-- Overlay início / game over -->
+  <div id="cobraOverlay" style="position:absolute;inset:0;z-index:50;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;">
+    <!-- Botão voltar fixo no canto superior esquerdo -->
+    <button ontouchstart="event.preventDefault();voltarLobbyCobrinha()" onclick="voltarLobbyCobrinha()" style="position:absolute;top:14px;left:14px;background:#2e2e2e;border:none;border-radius:8px;width:38px;height:38px;font-size:20px;font-weight:900;color:#ff3b3b;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;">&lt;</button>
+    <div style="font-size:68px;animation:emojiBounce 1s ease-in-out infinite;">🐍</div>
+    <div id="cobraOverlayTitle" style="font-family:'Fredoka One',cursive;font-size:28px;color:#fff;text-align:center;">Coxinha da Cobrinha</div>
+    <div id="cobraOverlayMsg" style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.55);text-align:center;line-height:1.8;">Arraste o dedo pra guiar a coxinha!<br>Ela atravessa as paredes — só morre se morder o próprio rabo!</div>
+    <button id="cobraStartBtn" ontouchstart="event.preventDefault();iniciarCobrinha()" onclick="iniciarCobrinha()" style="background:linear-gradient(135deg,#1e9e4a,#4dff88,#1e9e4a);background-size:200% 100%;border:none;border-radius:20px;padding:15px 52px;font-family:'Fredoka One',cursive;font-size:22px;color:white;cursor:pointer;box-shadow:0 6px 28px rgba(30,158,74,0.5);animation:btnPulse 2.5s ease-in-out infinite;-webkit-tap-highlight-color:transparent;">🐍 JOGAR!</button>
+  </div>
+
+</div>
 <div id="screenCopo" class="game-fullscreen" style="background:radial-gradient(ellipse at 50% 20%, #1a0a00 0%, #0d0500 60%, #050200 100%);">
 
   <!-- Topo -->
@@ -2413,6 +2326,7 @@ const JOGOS_VOLTAR = {
   entregador:  () => voltarLobbyEntregador(),
   minado:      () => voltarLobbyMinado(),
   copo:        () => voltarLobbyCopo(),
+  cobrinha:    () => voltarLobbyCobrinha(),
 };
 
 function pushHistoryJogo(jogo) {
@@ -3897,6 +3811,226 @@ document.addEventListener('keydown', e => {
   if (e.key==='ArrowUp'||e.key==='w') { entPlayer.ty=Math.max(60,entPlayer.ty-40); }
   if (e.key==='ArrowDown'||e.key==='s') { entPlayer.ty=Math.min(entH-entPlayer.h-10,entPlayer.ty+40); }
 });
+
+// ============================================================
+// 🐍 COXINHA DA COBRINHA — Snake clássico, tema coxinha
+// ============================================================
+let cobraCTX, cobraCanvas2, cobraW, cobraH;
+let cobraRunning = false, cobraRafId = null, cobraLastTick = 0;
+let cobraScore = 0, cobraBestScore = 0;
+let cobraTickMs = 150; // velocidade do movimento (ms por passo)
+const COBRA_CELL = 20; // tamanho da célula do grid
+let cobraCols = 0, cobraRows = 0;
+let cobraSnake = []; // array de {x,y} em células, [0] é a cabeça
+let cobraDir = { x: 1, y: 0 };
+let cobraNextDir = { x: 1, y: 0 };
+let cobraFood = { x: 0, y: 0, emoji: '🧀' };
+const COBRA_INGREDIENTES = ['🧀','🍗','🌽','🥓','🍅'];
+
+function abrirCobrinha() {
+  pushHistoryJogo('cobrinha');
+  document.getElementById('screenCobrinha').classList.add('open');
+  document.getElementById('cobraOverlay').style.display = 'flex';
+  document.getElementById('cobraOverlayTitle').textContent = 'Coxinha da Cobrinha';
+  document.getElementById('cobraOverlayMsg').innerHTML = 'Arraste o dedo pra guiar a coxinha!<br>Ela atravessa as paredes — só morre se morder o próprio rabo!';
+  document.getElementById('cobraStartBtn').textContent = '🐍 JOGAR!';
+  document.getElementById('cobraScore').textContent = '0';
+  document.getElementById('cobraBest').textContent = cobraBestScore;
+  setTimeout(() => {
+    cobraCanvas2 = document.getElementById('cobraCanvas');
+    cobraCTX = cobraCanvas2.getContext('2d');
+    cobraRedimensionar();
+    cobraSetupTouch();
+  }, 50);
+  window.addEventListener('resize', cobraRedimensionar);
+}
+
+function voltarLobbyCobrinha() {
+  cobraParar();
+  document.getElementById('screenCobrinha').classList.remove('open');
+  window.removeEventListener('resize', cobraRedimensionar);
+}
+
+function cobraRedimensionar() {
+  cobraW = window.innerWidth;
+  cobraH = window.innerHeight;
+  cobraCanvas2.width = cobraW;
+  cobraCanvas2.height = cobraH;
+  cobraCols = Math.floor(cobraW / COBRA_CELL);
+  cobraRows = Math.floor(cobraH / COBRA_CELL);
+  if (!cobraRunning) cobraDesenharIdle();
+}
+
+function cobraDesenharIdle() {
+  if (!cobraCTX) return;
+  cobraCTX.fillStyle = '#0d1f10';
+  cobraCTX.fillRect(0, 0, cobraW, cobraH);
+}
+
+// ── CONTROLES (swipe) ──────────────────────────────
+function cobraSetupTouch() {
+  let startX = 0, startY = 0;
+
+  cobraCanvas2.ontouchstart = e => {
+    e.preventDefault();
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  };
+  cobraCanvas2.ontouchmove = e => { e.preventDefault(); };
+  cobraCanvas2.ontouchend = e => {
+    e.preventDefault();
+    if (!cobraRunning) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - startX, dy = endY - startY;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return; // swipe muito curto, ignora
+    if (Math.abs(dx) > Math.abs(dy)) {
+      cobraDefinirDirecao(dx > 0 ? 1 : -1, 0);
+    } else {
+      cobraDefinirDirecao(0, dy > 0 ? 1 : -1);
+    }
+  };
+}
+
+function cobraDefinirDirecao(x, y) {
+  // impede virar 180° direto (não pode ir contra o próprio corpo)
+  if (cobraDir.x === -x && cobraDir.y === -y) return;
+  cobraNextDir = { x, y };
+}
+
+// Teclado desktop
+document.addEventListener('keydown', e => {
+  if (!cobraRunning) return;
+  if (e.key === 'ArrowLeft'  || e.key === 'a') cobraDefinirDirecao(-1, 0);
+  if (e.key === 'ArrowRight' || e.key === 'd') cobraDefinirDirecao(1, 0);
+  if (e.key === 'ArrowUp'    || e.key === 'w') cobraDefinirDirecao(0, -1);
+  if (e.key === 'ArrowDown'  || e.key === 's') cobraDefinirDirecao(0, 1);
+});
+
+// ── INICIAR ───────────────────────────────────────
+function iniciarCobrinha() {
+  document.getElementById('cobraOverlay').style.display = 'none';
+  cobraScore = 0;
+  cobraTickMs = 150;
+  document.getElementById('cobraScore').textContent = '0';
+
+  const cx = Math.floor(cobraCols / 2), cy = Math.floor(cobraRows / 2);
+  cobraSnake = [ {x:cx,y:cy}, {x:cx-1,y:cy}, {x:cx-2,y:cy} ];
+  cobraDir = { x: 1, y: 0 };
+  cobraNextDir = { x: 1, y: 0 };
+  cobraSpawnComida();
+
+  cobraRunning = true;
+  cobraLastTick = 0;
+  cobraRafId = requestAnimationFrame(cobraLoop);
+  somTick();
+}
+
+function cobraParar() {
+  cobraRunning = false;
+  if (cobraRafId) cancelAnimationFrame(cobraRafId);
+  cobraRafId = null;
+}
+
+function cobraSpawnComida() {
+  let pos;
+  do {
+    pos = { x: Math.floor(Math.random()*cobraCols), y: Math.floor(Math.random()*cobraRows) };
+  } while (cobraSnake.some(s => s.x === pos.x && s.y === pos.y));
+  cobraFood = { x: pos.x, y: pos.y, emoji: COBRA_INGREDIENTES[Math.floor(Math.random()*COBRA_INGREDIENTES.length)] };
+}
+
+// ── LOOP ──────────────────────────────────────────
+function cobraLoop(ts) {
+  if (!cobraRunning) return;
+  if (!cobraLastTick) cobraLastTick = ts;
+  const delta = ts - cobraLastTick;
+
+  if (delta >= cobraTickMs) {
+    cobraLastTick = ts;
+    cobraAtualizar();
+  }
+  cobraDesenhar();
+  cobraRafId = requestAnimationFrame(cobraLoop);
+}
+
+function cobraAtualizar() {
+  cobraDir = cobraNextDir;
+  const head = cobraSnake[0];
+  let novaCabeca = { x: head.x + cobraDir.x, y: head.y + cobraDir.y };
+
+  // atravessa as paredes e reaparece do lado oposto
+  if (novaCabeca.x < 0) novaCabeca.x = cobraCols - 1;
+  if (novaCabeca.x >= cobraCols) novaCabeca.x = 0;
+  if (novaCabeca.y < 0) novaCabeca.y = cobraRows - 1;
+  if (novaCabeca.y >= cobraRows) novaCabeca.y = 0;
+
+  // colisão com o próprio corpo
+  if (cobraSnake.some(s => s.x === novaCabeca.x && s.y === novaCabeca.y)) {
+    return cobraGameOver();
+  }
+
+  cobraSnake.unshift(novaCabeca);
+
+  if (novaCabeca.x === cobraFood.x && novaCabeca.y === cobraFood.y) {
+    cobraScore++;
+    document.getElementById('cobraScore').textContent = cobraScore;
+    somMemMatch();
+    cobraSpawnComida();
+    if (cobraTickMs > 70) cobraTickMs -= 3; // acelera aos poucos
+  } else {
+    cobraSnake.pop();
+  }
+}
+
+function cobraGameOver() {
+  cobraParar();
+  if (cobraScore > cobraBestScore) cobraBestScore = cobraScore;
+  document.getElementById('cobraBest').textContent = cobraBestScore;
+  somGameOver();
+  document.getElementById('cobraOverlayTitle').textContent = 'Fim de jogo!';
+  document.getElementById('cobraOverlayMsg').innerHTML = `Pontuação: <strong style="color:#4eff88">${cobraScore}</strong>&nbsp;&nbsp;|&nbsp;&nbsp;Recorde: <strong style="color:#ffd700">${cobraBestScore}</strong>`;
+  document.getElementById('cobraStartBtn').textContent = '🔄 JOGAR DE NOVO';
+  document.getElementById('cobraOverlay').style.display = 'flex';
+}
+
+// ── DESENHO ───────────────────────────────────────
+function cobraDesenhar() {
+  cobraCTX.fillStyle = '#0d1f10';
+  cobraCTX.fillRect(0, 0, cobraW, cobraH);
+
+  // grade sutil
+  cobraCTX.strokeStyle = 'rgba(255,255,255,0.03)';
+  for (let x=0; x<=cobraCols; x++) {
+    cobraCTX.beginPath(); cobraCTX.moveTo(x*COBRA_CELL,0); cobraCTX.lineTo(x*COBRA_CELL,cobraRows*COBRA_CELL); cobraCTX.stroke();
+  }
+  for (let y=0; y<=cobraRows; y++) {
+    cobraCTX.beginPath(); cobraCTX.moveTo(0,y*COBRA_CELL); cobraCTX.lineTo(cobraCols*COBRA_CELL,y*COBRA_CELL); cobraCTX.stroke();
+  }
+
+  // comida (ingrediente)
+  cobraCTX.font = `${COBRA_CELL*0.9}px sans-serif`;
+  cobraCTX.textAlign = 'center';
+  cobraCTX.textBaseline = 'middle';
+  cobraCTX.fillText(cobraFood.emoji, cobraFood.x*COBRA_CELL + COBRA_CELL/2, cobraFood.y*COBRA_CELL + COBRA_CELL/2);
+
+  // corpo da cobrinha (coxinha)
+  cobraSnake.forEach((seg, i) => {
+    const cxp = seg.x*COBRA_CELL + COBRA_CELL/2, cyp = seg.y*COBRA_CELL + COBRA_CELL/2;
+    if (i === 0) {
+      cobraCTX.font = `${COBRA_CELL}px sans-serif`;
+      cobraCTX.fillText('🍗', cxp, cyp);
+    } else {
+      const grad = cobraCTX.createRadialGradient(cxp,cyp,1,cxp,cyp,COBRA_CELL/2);
+      grad.addColorStop(0, '#f1c27d');
+      grad.addColorStop(1, '#c8860d');
+      cobraCTX.fillStyle = grad;
+      cobraCTX.beginPath();
+      cobraCTX.roundRect(seg.x*COBRA_CELL+2, seg.y*COBRA_CELL+2, COBRA_CELL-4, COBRA_CELL-4, 6);
+      cobraCTX.fill();
+    }
+  });
+}
 
 // ============================================================
 // 💣 CAMPO MINADO 5×5 — 5 bombas, lógica pura vira/revela
@@ -5649,53 +5783,5 @@ for(let i=0;i<4;i++){const _c=document.getElementById('copoCoxinha'+i);if(_c)_c.
 
 </script>
 
-<!-- ===== JOGO EXTERNO FULLSCREEN ===== -->
-<div id="screenJogoExterno" style="
-  display:none; position:fixed; inset:0; z-index:600;
-  background:#000; flex-direction:column; overflow:hidden;">
-
-  <!-- Barra topo -->
-  <div style="
-    position:absolute; top:0; left:0; right:0; z-index:20;
-    display:flex; align-items:center; justify-content:space-between;
-    padding:14px 16px 10px;
-    background:linear-gradient(180deg,rgba(0,0,0,0.85) 0%,transparent 100%);
-    pointer-events:none;">
-    <button id="jogoExternoBackBtn" onclick="fecharJogoExterno()" style="
-      pointer-events:all;
-      display:flex; align-items:center; justify-content:center;
-      width:38px; height:38px;
-      background:#2e2e2e; border:none; border-radius:8px;
-      color:#ff3b3b; font-size:20px; font-weight:900; cursor:pointer;
-      -webkit-tap-highlight-color:transparent;">✕</button>
-    <span id="jogoExternoTitulo" style="
-      pointer-events:none;
-      font-family:'Fredoka One',cursive; font-size:16px;
-      color:white; text-shadow:0 2px 8px rgba(0,0,0,0.8);
-      letter-spacing:0.5px;"></span>
-    <div style="width:38px;"></div>
-  </div>
-
-  <!-- iframe ocupa tudo -->
-  <iframe id="jogoExternoIframe"
-    src="about:blank"
-    style="flex:1; border:none; width:100%; height:100%;"
-    allow="autoplay; fullscreen"
-    allowfullscreen></iframe>
-</div>
-
-<script>
-function abrirJogoExterno(url, nome) {
-  window.open(url, '_blank');
-}
-
-function fecharJogoExterno() {
-  const screen = document.getElementById('screenJogoExterno');
-  const iframe  = document.getElementById('jogoExternoIframe');
-  screen.style.display = 'none';
-  iframe.src = 'about:blank';
-  document.body.style.overflow = '';
-}
-</script>
 </body>
 </html>

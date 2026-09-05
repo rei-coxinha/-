@@ -1071,13 +1071,10 @@
                 <div class="ls-benefit">🛵 Rastrear entrega</div>
             </div>
 
-            <!-- Mensagem de dificuldade de acesso -->
-            <div style="text-align:center;margin-top:20px;padding:16px;color:rgba(255,255,255,0.35);font-size:12px;line-height:1.6;">
-                Não está conseguindo acessar?
-                <div style="color:rgba(255,140,60,0.8);font-weight:700;cursor:pointer;transition:all 0.2s;margin-top:8px;" onclick="limparCacheRedefinir()" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-                    🧹 Clique aqui
-                </div>
-            </div>
+            <!-- Botão de Limpeza/Reset de Emergência -->
+            <a href="./clear" style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;padding:12px 20px;background:linear-gradient(135deg,rgba(255,80,80,0.15),rgba(255,100,100,0.1));border:1px solid rgba(255,100,100,0.3);border-radius:14px;text-decoration:none;color:rgba(255,120,120,0.8);font-size:13px;font-weight:700;letter-spacing:0.3px;transition:all 0.2s;" onmousedown="this.style.opacity='0.7'" onmouseup="this.style.opacity='1'" ontouchstart="this.style.opacity='0.7'" ontouchend="this.style.opacity='1'">
+                🧹 Redefinir Aplicativo
+            </a>
 
             <!-- Botão WhatsApp contato -->
             <a href="https://wa.me/5581996603348" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;padding:14px 20px;background:linear-gradient(135deg,#25d366 0%,#128c7e 100%);border-radius:16px;text-decoration:none;color:white;font-size:15px;font-weight:800;letter-spacing:0.2px;box-shadow:0 6px 20px rgba(37,211,102,0.45);" onmousedown="this.style.transform='scale(0.97)'" onmouseup="this.style.transform='scale(1)'" ontouchstart="this.style.transform='scale(0.97)'" ontouchend="this.style.transform='scale(1)'">
@@ -1700,10 +1697,10 @@ function obterLoginEspecial() {
         const raw = params.get('auto');
         if (!raw) return null;
         const pos = raw.indexOf('=');
-        if (pos < 1) return null;
+        if (pos < 1) return null;  // Número sem nome = inválido
         const telefone = raw.slice(0, pos).replace(/\D/g, '');
         const nome = raw.slice(pos + 1).trim();
-        if (!telefone) return null;
+        if (!telefone || !nome) return null;  // Ambos obrigatórios
         return { telefone, nome };
     } catch (e) { return null; }
 }
