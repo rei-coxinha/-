@@ -92,7 +92,7 @@
 
 <script>
 (function(){
-    var APP           = './card\u00e1pio.html';
+    var APP           = './cardápio.html';
     var status        = document.getElementById('splashStatus');
     var btnClear      = document.getElementById('btnClear');
 
@@ -108,60 +108,12 @@
     function caminhoAtual(){
         return window.location.pathname.replace(/\/+$/, '') || '/';
     }
-    function isRotaClear(){
-        var path = caminhoAtual();
-        var search = window.location.search;
-        var hash = window.location.hash;
-        return /(?:^|[\/=])clear$/i.test(path) ||
-               /[?&=]clear$/i.test(search) ||
-               /[#=]clear$/i.test(hash);
-    }
+
     function obterLoginEspecialDaRota(){
         var base = caminhoAtual().split('/').filter(Boolean).pop() || '';
         var m = base.match(/^(\d{8,15})=(.+)$/);
         if(!m) return null;
         return { telefone: m[1], nome: decodeURIComponent(m[2].replace(/\+/g, '%20')) };
-    }
-
-    /* ── Limpeza de emergência ── */
-    async function limparTudoEmergencia(){
-        document.body.innerHTML = '<main style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;text-align:center;color:white;background:#0a0600;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px"><div><div style="width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,180,30,0.2);border-top-color:#f5a623;animation:spin 0.9s linear infinite;margin:0 auto 28px"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style><div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:10px;">Redefinindo o aplicativo</div><div style="font-size:13px;color:rgba(255,200,100,0.45);line-height:1.7;max-width:280px;margin:0 auto">Estamos limpando os dados locais e o cache do dispositivo.<br>O aplicativo será reiniciado em instantes.</div></div></main>';
-        try{
-            if('serviceWorker' in navigator){
-                var regs = await navigator.serviceWorker.getRegistrations();
-                await Promise.all(regs.map(async function(reg){
-                    try{
-                        if(reg.active) reg.active.postMessage({type:'CLEAR_ALL'});
-                        else if(reg.waiting) reg.waiting.postMessage({type:'CLEAR_ALL'});
-                    }catch(e){}
-                }));
-            }
-            if('caches' in window){
-                var keys = await caches.keys();
-                await Promise.all(keys.map(function(k){ return caches.delete(k); }));
-            }
-            if('indexedDB' in window){
-                await Promise.all(['rei-coxinha-push'].map(function(name){
-                    return new Promise(function(resolve){
-                        try{ var r=indexedDB.deleteDatabase(name); r.onsuccess=r.onerror=r.onblocked=resolve; }catch(e){ resolve(); }
-                    });
-                }));
-            }
-            try{ localStorage.clear(); }catch(e){}
-            try{ sessionStorage.clear(); }catch(e){}
-            try{
-                document.cookie.split(';').forEach(function(c){
-                    var eq=c.indexOf('=');
-                    var name=(eq>=0?c.slice(0,eq):c).trim();
-                    if(name) document.cookie=name+'=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-                });
-            }catch(e){}
-            if('serviceWorker' in navigator){
-                var regs2 = await navigator.serviceWorker.getRegistrations();
-                await Promise.all(regs2.map(function(r){ return r.unregister(); }));
-            }
-        }catch(e){}
-        setTimeout(function(){ window.location.replace('./'); }, 900);
     }
 
     /* ── Destino com ?next= ── */
@@ -177,26 +129,14 @@
     }
 
     /* ── ROTAS ESPECIAIS ── */
-    if(isRotaClear()){
-        limparTudoEmergencia();
-        return;
-    }
-
     var loginRota = obterLoginEspecialDaRota();
     if(loginRota){
         status.textContent = 'Entrando...';
-        redirecionar('./card\u00e1pio.html?auto=' + encodeURIComponent(loginRota.telefone + '=' + loginRota.nome));
+        redirecionar('./cardápio.html?auto=' + encodeURIComponent(loginRota.telefone + '=' + loginRota.nome));
         return;
     }
 
     /* ── ROTEAMENTO PRINCIPAL ── */
-    /* Redireciona imediatamente — sem delay.
-       A animação só fica visível se o carregamento da próxima página demorar. */
-    var standalone =
-        window.matchMedia('(display-mode: standalone)').matches ||
-        window.navigator.standalone === true;
-
-
     redirecionar(resolverDestino());
 
 })();
