@@ -3,315 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#0c0700">
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" href="./icone.png">
     <title>🍗 O Rei da Coxinha</title>
     <style>
-        *{box-sizing:border-box}
-        html,body{margin:0;width:100%;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b1020;color:#fff}
-        body{display:flex;align-items:center;justify-content:center;overflow:hidden}
-        .gate{width:min(430px,92vw);text-align:center;padding:30px 22px}
-        .logo{width:112px;height:112px;border-radius:28px;object-fit:cover;box-shadow:0 12px 40px rgba(0,0,0,.5);margin-bottom:22px}
-        h1{margin:0 0 10px;font-size:26px;font-weight:900}
-        p{margin:0 auto 24px;color:rgba(255,255,255,.72);line-height:1.55;font-size:14px}
-        .install{width:100%;padding:17px;border:0;border-radius:16px;background:linear-gradient(135deg,#1aad52,#25d366);color:#fff;font-size:16px;font-weight:900;box-shadow:0 8px 28px rgba(37,211,102,.28);cursor:pointer}
-        .install:disabled{opacity:.55;cursor:default}
-        .hint{margin-top:15px;font-size:12px;color:rgba(255,255,255,.48);line-height:1.5}
-        .loading{display:none}
-        .loading.active{display:block}
-        .spinner{width:38px;height:38px;margin:0 auto 16px;border:4px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+        *{margin:0;padding:0;box-sizing:border-box}
+        html,body{width:100%;height:100%;overflow:hidden;background:#0a0600;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+        body{display:flex;align-items:center;justify-content:center}
+
+        #splash{
+            position:fixed;inset:0;
+            display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            background:radial-gradient(ellipse at 50% 40%, #1e0e00 0%, #0a0600 70%);
+            transition:opacity 0.4s ease;
+        }
+        #splash.fade-out{opacity:0;pointer-events:none}
+
+        /* Anel animado duplo */
+        .rings{position:relative;width:80px;height:80px;margin-bottom:32px;}
+        .ring-outer{
+            position:absolute;inset:0;border-radius:50%;
+            border:2px solid rgba(255,180,30,0.12);
+            border-top-color:rgba(255,180,30,0.5);
+            animation:spin 1.4s linear infinite;
+        }
+        .ring-inner{
+            position:absolute;inset:12px;border-radius:50%;
+            border:2px solid rgba(255,140,0,0.08);
+            border-bottom-color:#f5a623;
+            animation:spin 0.9s linear infinite reverse;
+        }
+        .ring-dot{
+            position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+            font-size:26px;
+            animation:pulse 2s ease-in-out infinite;
+        }
         @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+
+        /* Textos */
+        .splash-title{
+            font-size:22px;font-weight:800;
+            color:#FFD700;letter-spacing:0.5px;
+            text-shadow:0 0 20px rgba(255,200,0,0.2);
+            margin-bottom:6px;
+        }
+        .splash-sub{
+            font-size:12px;color:rgba(255,200,100,0.45);
+            letter-spacing:1.5px;text-transform:uppercase;
+            margin-bottom:40px;
+        }
+        .splash-status{
+            font-size:12px;color:rgba(255,200,100,0.4);
+            letter-spacing:0.5px;
+            min-height:16px;
+            animation:blink 1.8s ease-in-out infinite;
+        }
+        @keyframes blink{0%,100%{opacity:0.4}50%{opacity:0.8}}
+
+        /* Botão de emergência — aparece após 6s */
+        #btnClear{
+            display:none;
+            position:absolute;bottom:48px;left:50%;transform:translateX(-50%);
+            background:none;border:1px solid rgba(255,80,80,0.25);
+            border-radius:20px;padding:8px 20px;
+            color:rgba(255,100,100,0.45);font-size:11px;
+            cursor:pointer;letter-spacing:0.5px;
+            -webkit-tap-highlight-color:transparent;
+            transition:all 0.2s;
+        }
+        #btnClear:active{background:rgba(255,80,80,0.06);color:rgba(255,120,120,0.7);}
     </style>
 </head>
 <body>
-    <main class="gate" id="installGate">
-        <img class="logo" src="./icone.png" alt="O Rei da Coxinha">
-        <h1>🍗 O Rei da Coxinha</h1>
-        <p>Para continuar, instale o aplicativo na tela inicial.<br>Depois da instalação, o cardápio será aberto automaticamente.</p>
-        <button class="install" id="installButton" disabled>📲 Preparando instalação...</button>
-        <div class="hint" id="installHint">Aguarde enquanto o sistema prepara a instalação.</div>
-    </main>
-
-    <main class="gate loading" id="loadingGate">
-        <div class="spinner"></div>
-        <h1>🍗 Abrindo o aplicativo...</h1>
-    </main>
+<div id="splash">
+    <div class="rings">
+        <div class="ring-outer"></div>
+        <div class="ring-inner"></div>
+        <div class="ring-dot">🍗</div>
+    </div>
+    <div class="splash-title">Rei da Coxinha</div>
+    <div class="splash-sub">O sabor é real</div>
+    <div class="splash-status" id="splashStatus">Verificando...</div>
+    <button id="btnClear" onclick="irParaClear()">Redefinir aplicativo</button>
+</div>
 
 <script>
 (function(){
-    var APP = './cardápio.html';
+    var APP           = './card\u00e1pio.html';
     var INSTALLED_KEY = 'pwa_instalado';
+    var status        = document.getElementById('splashStatus');
+    var btnClear      = document.getElementById('btnClear');
 
-    /* ─────────────────────────────────────────────────────────────────
-       NORMALIZA TELEFONE
-       Pega os últimos 8 dígitos e forma "819" + 8 dígitos.
-       ───────────────────────────────────────────────────────────────── */
-    function normalizarTelefone(raw) {
-        var digitos = raw.replace(/\D/g, '');
-        if (digitos.length < 8) return null;
-        var ultimos8 = digitos.slice(-8);
-        return '819' + ultimos8;
+    /* Mostra botão de emergência após 6 s */
+    setTimeout(function(){ btnClear.style.display = 'block'; }, 6000);
+
+    /* Ir para /clear */
+    window.irParaClear = function(){
+        window.location.replace('./clear');
+    };
+
+    /* ── Utilitários de rota ── */
+    function caminhoAtual(){
+        return window.location.pathname.replace(/\/+$/, '') || '/';
+    }
+    function isRotaClear(){
+        return /(?:^|\/)clear$/i.test(caminhoAtual());
+    }
+    function obterLoginEspecialDaRota(){
+        var base = caminhoAtual().split('/').filter(Boolean).pop() || '';
+        var m = base.match(/^(\d{8,15})=(.+)$/);
+        if(!m) return null;
+        return { telefone: m[1], nome: decodeURIComponent(m[2].replace(/\+/g, '%20')) };
     }
 
-    /* ─────────────────────────────────────────────────────────────────
-       DETECTA COMANDO NA URL
-       Formatos tratados:
-         /-/clear            → limpeza total
-         /-/NUMERO=NOME      → login/cadastro automático
-       ───────────────────────────────────────────────────────────────── */
-    var caminho = window.location.pathname.replace(/\/+$/, '');
-
-    /* ── COMANDO: /-/clear ──────────────────────────────────────────── */
-    // Também aceita ?_cmd=clear vindo do 404.html
-    var _cmdParam = new URLSearchParams(window.location.search).get('_cmd');
-    if (caminho === '/-/clear' || _cmdParam === 'clear') {
-        document.title = 'Limpando aplicativo...';
-        limparTudoPWA().finally(function(){
-            setTimeout(function(){
-                window.location.replace('https://rei-coxinha.github.io/-/');
-            }, 400);
-        });
-        return; // para a execução aqui
-    }
-
-    /* ── COMANDO: /-/NUMERO=NOME ────────────────────────────────────── */
-    // Extrai o segmento após /-/
-    var segmento = '';
-    var matchSeg = caminho.match(/^\/-\/(.+)$/);
-    if (matchSeg) segmento = matchSeg[1];
-
-    var autoPhone = null;
-    var autoName  = null;
-
-    if (segmento && segmento.indexOf('=') !== -1) {
-        var partes = segmento.split('=');
-        var rawNum = partes[0].trim();
-        var rawNom = partes.slice(1).join('=').trim(); // suporte a "=" no nome
-
-        if (/^\d{8,}$/.test(rawNum) && rawNom.length > 0) {
-            var phoneNorm = normalizarTelefone(rawNum);
-            if (phoneNorm) {
-                autoPhone = phoneNorm;
-                autoName  = decodeURIComponent(rawNom);
-            }
-        }
-    }
-
-    /* ─────────────────────────────────────────────────────────────────
-       LIMPEZA TOTAL PWA
-       ───────────────────────────────────────────────────────────────── */
-    async function limparTudoPWA() {
-        var resultados = [];
-
-        // 1) Storages da página
-        try { localStorage.clear();  resultados.push('localStorage');  } catch(e) {}
-        try { sessionStorage.clear(); resultados.push('sessionStorage'); } catch(e) {}
-
-        // 2) Fecha notificações
-        try {
-            if ('serviceWorker' in navigator) {
+    /* ── Limpeza de emergência ── */
+    async function limparTudoEmergencia(){
+        document.body.innerHTML = '<main style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;text-align:center;color:white;background:#0a0600;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px"><div><div style="width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,180,30,0.2);border-top-color:#f5a623;animation:spin 0.9s linear infinite;margin:0 auto 28px"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style><div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:10px;">Redefinindo o aplicativo</div><div style="font-size:13px;color:rgba(255,200,100,0.45);line-height:1.7;max-width:280px;margin:0 auto">Estamos limpando os dados locais e o cache do dispositivo.<br>O aplicativo será reiniciado em instantes.</div></div></main>';
+        try{
+            if('serviceWorker' in navigator){
                 var regs = await navigator.serviceWorker.getRegistrations();
-                for (var i = 0; i < regs.length; i++) {
-                    try {
-                        var notifs = await regs[i].getNotifications();
-                        notifs.forEach(function(n){ try { n.close(); } catch(e){} });
-                    } catch(e) {}
-                }
+                await Promise.all(regs.map(async function(reg){
+                    try{
+                        if(reg.active) reg.active.postMessage({type:'CLEAR_ALL'});
+                        else if(reg.waiting) reg.waiting.postMessage({type:'CLEAR_ALL'});
+                    }catch(e){}
+                }));
             }
-        } catch(e) {}
-
-        // 3) Pede ao SW para apagar o que ele controla
-        try {
-            if ('serviceWorker' in navigator) {
-                var regs2 = await navigator.serviceWorker.getRegistrations();
-                for (var i = 0; i < regs2.length; i++) {
-                    var reg = regs2[i];
-                    if (reg.active) {
-                        await new Promise(function(resolve){
-                            var channel = new MessageChannel();
-                            var done = false;
-                            var finish = function(){ if(done) return; done=true; resolve(); };
-                            channel.port1.onmessage = function(){ finish(); };
-                            try {
-                                reg.active.postMessage({ type: 'CLEAR_PWA_DATA' }, [channel.port2]);
-                            } catch(e) { finish(); }
-                            setTimeout(finish, 1500);
-                        });
-                    }
-                }
-                // 4) Desregistra os Service Workers
-                for (var j = 0; j < regs2.length; j++) {
-                    try { await regs2[j].unregister(); } catch(e) {}
-                }
-            }
-        } catch(e) {}
-
-        // 5) Apaga Cache Storage
-        try {
-            if ('caches' in window) {
+            if('caches' in window){
                 var keys = await caches.keys();
-                await Promise.all(keys.map(function(key){ return caches.delete(key); }));
-                resultados.push('cacheStorage');
+                await Promise.all(keys.map(function(k){ return caches.delete(k); }));
             }
-        } catch(e) {}
-
-        // 6) Apaga IndexedDB
-        try {
-            if (window.indexedDB && indexedDB.databases) {
-                var dbs = await indexedDB.databases();
-                await Promise.all(dbs.map(function(db){
-                    if (!db || !db.name) return Promise.resolve();
+            if('indexedDB' in window){
+                await Promise.all(['rei-coxinha-push'].map(function(name){
                     return new Promise(function(resolve){
-                        var request;
-                        try { request = indexedDB.deleteDatabase(db.name); } catch(e){ resolve(); return; }
-                        request.onsuccess = request.onerror = request.onblocked = function(){ resolve(); };
+                        try{ var r=indexedDB.deleteDatabase(name); r.onsuccess=r.onerror=r.onblocked=resolve; }catch(e){ resolve(); }
                     });
                 }));
-                resultados.push('indexedDB');
             }
-        } catch(e) {}
-
-        // 7) Cookies JS
-        try {
-            document.cookie.split(';').forEach(function(cookie){
-                var eq = cookie.indexOf('=');
-                var name = (eq >= 0 ? cookie.slice(0, eq) : cookie).trim();
-                if (name) {
-                    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-                    document.cookie = name + '=; Max-Age=0; path=/';
-                }
-            });
-        } catch(e) {}
-
-        return resultados;
+            try{ localStorage.clear(); }catch(e){}
+            try{ sessionStorage.clear(); }catch(e){}
+            try{
+                document.cookie.split(';').forEach(function(c){
+                    var eq=c.indexOf('=');
+                    var name=(eq>=0?c.slice(0,eq):c).trim();
+                    if(name) document.cookie=name+'=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+                });
+            }catch(e){}
+            if('serviceWorker' in navigator){
+                var regs2 = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(regs2.map(function(r){ return r.unregister(); }));
+            }
+        }catch(e){}
+        setTimeout(function(){ window.location.replace('./'); }, 900);
     }
 
-    /* ─────────────────────────────────────────────────────────────────
-       DESTINO DO APP
-       ───────────────────────────────────────────────────────────────── */
-    function resolverDestino() {
-        // Se veio de ?next=
-        var params = new URLSearchParams(window.location.search);
-        var next = params.get('next');
-        if (next) return decodeURIComponent(next);
+    /* ── Destino com ?next= ── */
+    function resolverDestino(){
+        var next = new URLSearchParams(window.location.search).get('next');
+        return next ? decodeURIComponent(next) : APP;
+    }
 
-        // Se veio de URL especial /-/NUMERO=NOME, repassa para cardápio
-        if (autoPhone && autoName) {
-            return './cardápio.html?autoPhone=' +
-                encodeURIComponent(autoPhone) +
-                '&autoName=' +
-                encodeURIComponent(autoName);
+    /* ── Redireciona com fade ── */
+    function redirecionar(url){
+        document.getElementById('splash').classList.add('fade-out');
+        setTimeout(function(){ window.location.replace(url); }, 380);
+    }
+
+    /* ── ROTAS ESPECIAIS ── */
+    if(isRotaClear()){
+        limparTudoEmergencia();
+        return;
+    }
+
+    var loginRota = obterLoginEspecialDaRota();
+    if(loginRota){
+        status.textContent = 'Entrando...';
+        redirecionar('./card\u00e1pio.html?auto=' + encodeURIComponent(loginRota.telefone + '=' + loginRota.nome));
+        return;
+    }
+
+    /* ── ROTEAMENTO PRINCIPAL ── */
+    setTimeout(function(){
+        status.textContent = 'Abrindo...';
+
+        if(!/Android/i.test(navigator.userAgent)){
+            redirecionar(resolverDestino());
+            return;
         }
 
-        return APP;
-    }
-
-    /* Abre o app */
-    function abrirApp() {
-        var loadingGate = document.getElementById('loadingGate');
-        var installGate = document.getElementById('installGate');
-        if (loadingGate) loadingGate.classList.add('active');
-        if (installGate) installGate.style.display = 'none';
-        window.location.replace(resolverDestino());
-    }
-
-    /* ─────────────────────────────────────────────────────────────────
-       VERIFICA INSTALAÇÃO
-       ───────────────────────────────────────────────────────────────── */
-    function verificarInstalacao() {
         var standalone =
             window.matchMedia('(display-mode: standalone)').matches ||
             window.navigator.standalone === true;
 
-        if (standalone) {
+        if(standalone){
             localStorage.setItem(INSTALLED_KEY, '1');
-            abrirApp();
-            return true;
-        }
-
-        if (localStorage.getItem(INSTALLED_KEY) === '1') {
-            abrirApp();
-            return true;
-        }
-
-        return false;
-    }
-
-    /* ─────────────────────────────────────────────────────────────────
-       FLUXO PRINCIPAL
-       ───────────────────────────────────────────────────────────────── */
-
-    // Se há comando autoPhone/autoName e o app não está instalado no Android,
-    // ainda assim abre o cardápio direto (sem exigir instalação para o comando de URL).
-    // Para Android sem instalação + sem comando especial → exige instalação.
-    var isAndroid = /Android/i.test(navigator.userAgent);
-
-    // Não-Android: entra direto
-    if (!isAndroid) {
-        abrirApp();
-        return;
-    }
-
-    // Android com comando de URL especial: abre direto (não bloqueia no install)
-    if (autoPhone && autoName) {
-        abrirApp();
-        return;
-    }
-
-    // Android normal: verifica instalação
-    if (verificarInstalacao()) return;
-
-    /* ── A partir daqui: Android sem instalação, sem comando especial ── */
-
-    var btn         = document.getElementById('installButton');
-    var hint        = document.getElementById('installHint');
-    var deferredPrompt = null;
-
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./SW-CLIENTE.js').catch(function(){});
-    }
-
-    window.addEventListener('beforeinstallprompt', function(e){
-        e.preventDefault();
-        deferredPrompt = e;
-        btn.disabled = false;
-        btn.textContent = '📲 Instalar aplicativo';
-        hint.textContent = 'A instalação é necessária para continuar.';
-    });
-
-    btn.addEventListener('click', async function(){
-        if (!deferredPrompt) {
-            hint.textContent = 'Se o botão de instalação não aparecer, abra o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar à tela inicial".';
+            redirecionar(resolverDestino());
             return;
         }
-        btn.disabled = true;
-        deferredPrompt.prompt();
-        var result = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-        if (result.outcome === 'accepted') {
-            hint.textContent = 'Instalação concluída. Abrindo...';
-        } else {
-            btn.disabled = false;
-            btn.textContent = '📲 Instalar aplicativo';
-            hint.textContent = 'Você precisa instalar o aplicativo para continuar.';
-        }
-    });
 
-    window.addEventListener('appinstalled', function(){
-        deferredPrompt = null;
-        localStorage.setItem(INSTALLED_KEY, '1');
-        setTimeout(abrirApp, 250);
-    });
-
-    // Fallback: beforeinstallprompt não disparou em 3 s
-    setTimeout(function(){
-        if (!deferredPrompt && btn.disabled) {
-            btn.disabled = false;
-            btn.textContent = '📲 Instalar aplicativo';
-            hint.textContent = 'Se a instalação não abrir automaticamente, use o menu do navegador para instalar o aplicativo.';
+        if(localStorage.getItem(INSTALLED_KEY) === '1'){
+            redirecionar(resolverDestino());
+            return;
         }
-    }, 3000);
+
+        redirecionar(resolverDestino());
+
+    }, 900);
 
 })();
 </script>

@@ -1570,90 +1570,20 @@ window.onload = async () => {
         // Adicionar histórico inicial
         window.history.pushState({ state: 'home' }, '', window.location.href);
 
-        // ── AUTO-LOGIN VIA URL (/index.html?autoPhone=...&autoName=...) ──────────
-        // Gerado pelo index.html quando detecta /-/NUMERO=NOME na URL.
-        // Executado ANTES de qualquer verificação de savedPhone.
-        {
-            const _urlP = new URLSearchParams(window.location.search);
-            const _autoPhone = _urlP.get('autoPhone');
-            const _autoName  = _urlP.get('autoName');
-
-            if (_autoPhone && _autoName) {
-                // Remove os parâmetros imediatamente — F5 não repete o processo.
-                window.history.replaceState(null, '', window.location.pathname);
-
-                // Busca o cliente pelo telefone normalizado.
-                let _autoClient = null;
-                try {
-                    const _autoRes = await comTimeout(
-                        sb.from('clientes').select('*').eq('phone', _autoPhone).maybeSingle(),
-                        8000, 'Timeout auto-login'
-                    );
-                    if (!_autoRes.error) _autoClient = _autoRes.data;
-                } catch(e) {
-                    console.warn('[AutoLogin] Supabase indisponível:', e.message);
-                }
-
-                if (_autoClient === undefined || _autoClient === null) {
-                    // Cliente não existe → cadastra automaticamente.
-                    try {
-                        const _autoIns = await sb
-                            .from('clientes')
-                            .insert([{ name: _autoName, phone: _autoPhone, debt: 0 }])
-                            .select()
-                            .single();
-                        if (!_autoIns.error) _autoClient = _autoIns.data;
-                    } catch(e) {
-                        console.warn('[AutoLogin] Falha ao cadastrar:', e.message);
-                    }
-                }
-                // Se ainda não temos cliente (Supabase indisponível), segue fluxo normal.
-                if (_autoClient) {
-                    // Salva sessão — idêntico ao login normal.
-                    user = {
-                        name: _autoClient.name,
-                        phone: _autoClient.phone,
-                        debt: _autoClient.debt,
-                        show_name: _autoClient.show_name,
-                        created_at: _autoClient.created_at,
-                        oferta_ativa: _autoClient.oferta_ativa
-                    };
-                    localStorage.setItem('rei_phone', _autoClient.phone);
-                    localStorage.setItem('rei_user', JSON.stringify(user));
-
-                    // Favoritos do Supabase.
-                    if (_autoClient.saved_order && _autoClient.saved_order.trim()) {
-                        favorites[_autoClient.phone] = {
-                            saved_order: _autoClient.saved_order,
-                            saved_order_total: Number(_autoClient.saved_order_total) || 0
-                        };
-                    } else {
-                        favorites[_autoClient.phone] = null;
-                    }
-                    localStorage.setItem('rei_favs', JSON.stringify(favorites));
-                    window._bcSend && window._bcSend({ type: 'LOGIN', phone: _autoClient.phone, user });
-
-                    clearTimeout(timeoutGlobal);
-                    _mostrarApp();
-                    atualizarCabecalho();
-                    checkFavoriteBtn();
-                    carregarPrivacidade();
-                    carregarTemaSalvo();
-                    await loadProducts();
-                    iniciarRealtimeCliente(_autoClient.phone);
-                    iniciarAtualizacaoPeriodicaSaldo();
-                    setTimeout(() => renderHistoricoSaldo(), 500);
-                    mostrarPopupOferta(_autoClient, false);
-                    registrarPushCliente(_autoClient.phone);
-                    return;
-                }
-                // Sem cliente → continua fluxo normal abaixo.
-            }
-        }
-        // ── FIM AUTO-LOGIN VIA URL ────────────────────────────────────────────────
-
         // Carregar favoritos da sessão local (fallback offline)
         favorites = JSON.parse(localStorage.getItem('rei_favs')) || {};
+
+        // Link especial: usa o MESMO auth() do login manual e o MESMO armazenamento.
+        const loginEspecialInicial = obterLoginEspecial();
+        if (loginEspecialInicial) {
+            const phoneEspecial = normalizarTelefoneLogin(loginEspecialInicial.telefone);
+            const campoPhone = document.getElementById('userPhone');
+            const campoNome = document.getElementById('userName');
+            if (campoPhone) campoPhone.value = loginEspecialInicial.telefone;
+            if (campoNome && loginEspecialInicial.nome) campoNome.value = loginEspecialInicial.nome;
+            await auth();
+            return;
+        }
 
         // Verificar se já tem login salvo
         const savedPhone = localStorage.getItem('rei_phone');
@@ -1763,45 +1693,66 @@ window.onload = async () => {
 };
 
 
+// ===== LOGIN AUTOMÁTICO POR LINK ESPECIAL =====
+function obterLoginEspecial() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get('auto');
+        if (!raw) return null;
+        const pos = raw.indexOf('=');
+        if (pos < 1) return null;
+        const telefone = raw.slice(0, pos).replace(/\D/g, '');
+        const nome = raw.slice(pos + 1).trim();
+        if (!telefone) return null;
+        return { telefone, nome };
+    } catch (e) { return null; }
+}
+
+function normalizarTelefoneLogin(valor) {
+    let partialPhone = String(valor || '').replace(/\D/g, '');
+    if (partialPhone.startsWith('55')) partialPhone = partialPhone.substring(2);
+    if (partialPhone.length >= 8) partialPhone = partialPhone.slice(-8);
+    else return null;
+    let phone = '819' + partialPhone;
+    const phoneAliases = { "81987650178": "81986633773" };
+    if (phoneAliases[phone]) phone = phoneAliases[phone];
+    return phone;
+}
+
 // ===== AUTH =====
 async function auth() {
     const btn = document.getElementById('btnLogin');
     btn.disabled = true; btn.textContent = "Entrando...";
     document.getElementById('loginError').style.display = 'none';
 
-    // Verificar se já tem número salvo (usuário já se cadastrou antes)
+    // Link especial tem prioridade sobre qualquer login salvo neste aparelho.
+    const loginEspecial = obterLoginEspecial();
     let savedPhone = localStorage.getItem('rei_phone');
     let phone;
 
-    if (savedPhone) {
+    if (loginEspecial) {
+        phone = normalizarTelefoneLogin(loginEspecial.telefone);
+        if (!phone) {
+            showLoginError("Número do link inválido");
+            btn.disabled = false; btn.textContent = "Entrar";
+            return;
+        }
+        // O link especial substitui o cliente anterior localmente, como um login normal faria.
+        localStorage.removeItem('rei_phone');
+        localStorage.removeItem('rei_user');
+        const nomeLink = document.getElementById('userName');
+        if (nomeLink && loginEspecial.nome) nomeLink.value = loginEspecial.nome;
+    } else if (savedPhone) {
         // ✅ USUÁRIO JÁ CADASTRADO - usa número salvo automaticamente
         phone = savedPhone;
     } else {
         // ❌ PRIMEIRO CADASTRO - pedir número
-        let partialPhone = document.getElementById('userPhone').value.replace(/\D/g,'');
-        
-        // Remover código do país se existir (+55, 0055, etc)
-        // Se começa com 55, remove (código do Brasil)
-        if (partialPhone.startsWith('55')) {
-            partialPhone = partialPhone.substring(2);
-        }
-        
-        // Extrair apenas os 8 últimos dígitos
-        if (partialPhone.length >= 8) {
-            partialPhone = partialPhone.slice(-8); // Pega os últimos 8 dígitos
-        } else {
+        phone = normalizarTelefoneLogin(document.getElementById('userPhone').value);
+        if (!phone) {
             showLoginError("Digite o número completo (mínimo 8 dígitos)");
             btn.disabled = false; btn.textContent = "Entrar";
             return;
         }
-
-        phone = "819" + partialPhone;
-
-        // Mapeamento de aliases: números alternativos que apontam para a conta principal
-        const phoneAliases = {
-            "81987650178": "81986633773"
-        };
-        if (phoneAliases[phone]) phone = phoneAliases[phone];
     }
 
     // Buscar cliente
@@ -1809,20 +1760,25 @@ async function auth() {
     const clienteNovo = !client; // true se não existia no Supabase
 
     if (!client) {
-        // Mostrar campo de nome (apenas no primeiro cadastro)
+        // No link especial, mantém exatamente o fluxo manual: primeiro mostra o nome.
         const nb = document.getElementById('nameBox');
-        if (nb.style.display === 'none' || nb.style.display === '') {
+        if (!loginEspecial && (nb.style.display === 'none' || nb.style.display === '')) {
             nb.style.display = 'block';
             btn.disabled = false; btn.textContent = "Entrar";
             return;
         }
-        const name = document.getElementById('userName').value.trim();
+        const name = document.getElementById('userName').value.trim() || (loginEspecial && loginEspecial.nome ? loginEspecial.nome.trim() : '');
         if (!name) {
             showLoginError("Digite seu nome");
             btn.disabled = false; btn.textContent = "Entrar";
             return;
         }
-        const { data: newClient } = await sb.from("clientes").insert({ name, phone, debt: 0 }).select().single();
+        const { data: newClient, error: insertError } = await sb.from("clientes").insert({ name, phone, debt: 0 }).select().single();
+        if (insertError || !newClient) {
+            showLoginError(insertError?.message || "Não foi possível cadastrar o cliente");
+            btn.disabled = false; btn.textContent = "Entrar";
+            return;
+        }
         client = newClient;
 
         // ✅ SALVAR NÚMERO NA PRIMEIRA VEZ - Próximas vezes não pedirá mais
@@ -3718,16 +3674,40 @@ async function limparCacheRedefinir() {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(async r => {
+                try {
+                    if (r.active) r.active.postMessage({ type: 'CLEAR_ALL' });
+                    else if (r.waiting) r.waiting.postMessage({ type: 'CLEAR_ALL' });
+                } catch (_) {}
+            }));
+        }
         if ('caches' in window) {
             const keys = await caches.keys();
             await Promise.all(keys.map(k => caches.delete(k)));
         }
+        if ('indexedDB' in window) {
+            await new Promise(resolve => {
+                try {
+                    const req = indexedDB.deleteDatabase('rei-coxinha-push');
+                    req.onsuccess = req.onerror = req.onblocked = () => resolve();
+                } catch (_) { resolve(); }
+            });
+        }
+        localStorage.clear();
+        sessionStorage.clear();
+        try {
+            document.cookie.split(';').forEach(c => {
+                const eq = c.indexOf('=');
+                const name = (eq >= 0 ? c.slice(0, eq) : c).trim();
+                if (name) document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+            });
+        } catch (_) {}
         if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             await Promise.all(regs.map(r => r.unregister()));
         }
-        localStorage.clear();
-        sessionStorage.clear();
 
         // Aguarda a animação terminar antes de recarregar
         setTimeout(() => window.location.reload(true), 2800);
@@ -4028,5 +4008,152 @@ function fecharModalNotif(id) {
     </div>
 </div>
 <!-- ===== FIM MODAL: NOTIFICAÇÃO BLOQUEADA ===== -->
+
+<!-- ===== POPUP INSTALAÇÃO PWA ===== -->
+<div id="pwaOverlay" style="display:none;opacity:0;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.0);align-items:flex-end;justify-content:center;transition:opacity 0.35s ease;padding:0;">
+    <div id="pwaCard" style="width:100%;max-width:480px;background:linear-gradient(180deg,#1a1208 0%,#0e0900 100%);border-radius:28px 28px 0 0;padding:32px 24px 40px;transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.34,1.15,0.64,1);box-shadow:0 -8px 48px rgba(0,0,0,0.7);position:relative;">
+
+        <!-- Alça -->
+        <div style="width:40px;height:4px;background:rgba(255,180,30,0.25);border-radius:2px;margin:0 auto 28px;"></div>
+
+        <!-- Logo + texto -->
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+            <img src="./icone.png" alt="Rei da Coxinha" style="width:58px;height:58px;border-radius:16px;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+            <div>
+                <div style="font-size:17px;font-weight:800;color:#fff;line-height:1.2;">Instale o Rei da Coxinha</div>
+                <div style="font-size:12px;color:rgba(255,200,100,0.55);margin-top:4px;line-height:1.4;">Peça mais rápido e receba ofertas exclusivas</div>
+            </div>
+        </div>
+
+        <!-- Pills de benefícios -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
+            <div style="display:flex;align-items:center;gap:6px;background:rgba(255,180,30,0.08);border:1px solid rgba(255,180,30,0.16);border-radius:20px;padding:6px 12px;">
+                <div style="width:5px;height:5px;border-radius:50%;background:#f5a623;flex-shrink:0;"></div>
+                <span style="font-size:11px;color:rgba(255,210,140,0.85);">Acesso rápido</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;background:rgba(255,180,30,0.08);border:1px solid rgba(255,180,30,0.16);border-radius:20px;padding:6px 12px;">
+                <div style="width:5px;height:5px;border-radius:50%;background:#f5a623;flex-shrink:0;"></div>
+                <span style="font-size:11px;color:rgba(255,210,140,0.85);">Ofertas exclusivas</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;background:rgba(255,180,30,0.08);border:1px solid rgba(255,180,30,0.16);border-radius:20px;padding:6px 12px;">
+                <div style="width:5px;height:5px;border-radius:50%;background:#f5a623;flex-shrink:0;"></div>
+                <span style="font-size:11px;color:rgba(255,210,140,0.85);">Notificações</span>
+            </div>
+        </div>
+
+        <!-- Separador -->
+        <div style="width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,180,30,0.2),transparent);margin-bottom:20px;"></div>
+
+        <!-- Botão instalar -->
+        <button id="pwaBtnInstalar" style="width:100%;padding:16px;border:0;border-radius:16px;background:linear-gradient(135deg,#FFD700 0%,#f5a623 50%,#e07b00 100%);color:#1a0800;font-size:15px;font-weight:900;letter-spacing:0.5px;cursor:pointer;box-shadow:0 4px 20px rgba(240,160,20,0.3);-webkit-tap-highlight-color:transparent;margin-bottom:10px;">
+            📲 Instalar aplicativo
+        </button>
+
+        <!-- Hint -->
+        <div id="pwaHint" style="font-size:11px;color:rgba(255,200,100,0.4);text-align:center;line-height:1.5;min-height:16px;"></div>
+
+        <!-- Fechar / continuar no navegador -->
+        <button id="pwaBtnFechar" style="width:100%;padding:12px;border:0;background:none;color:rgba(255,200,100,0.35);font-size:12px;cursor:pointer;margin-top:8px;-webkit-tap-highlight-color:transparent;">
+            Continuar no navegador
+        </button>
+    </div>
+</div>
+
+<script>
+(function(){
+    var INSTALLED_KEY = 'pwa_instalado';
+    var deferredPrompt = null;
+
+    var overlay     = document.getElementById('pwaOverlay');
+    var card        = document.getElementById('pwaCard');
+    var btnInstalar = document.getElementById('pwaBtnInstalar');
+    var btnFechar   = document.getElementById('pwaBtnFechar');
+    var hint        = document.getElementById('pwaHint');
+
+    function mostrarPopup(){
+        overlay.style.display = 'flex';
+        requestAnimationFrame(function(){
+            overlay.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        });
+    }
+
+    function fecharPopup(){
+        overlay.style.opacity = '0';
+        card.style.transform = 'translateY(100%)';
+        setTimeout(function(){ overlay.style.display = 'none'; }, 380);
+    }
+
+    function deveVerificar(){
+        /* Só Android sem PWA instalado e sem login */
+        if(!/Android/i.test(navigator.userAgent)) return false;
+
+        var standalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+        if(standalone){ localStorage.setItem(INSTALLED_KEY,'1'); return false; }
+        if(localStorage.getItem(INSTALLED_KEY) === '1') return false;
+        return true;
+    }
+
+    if(!deveVerificar()) return;
+
+    /* Registra SW */
+    if('serviceWorker' in navigator){
+        navigator.serviceWorker.register('./SW-CLIENTE.js').catch(function(){});
+    }
+
+    /* Captura o prompt de instalação */
+    window.addEventListener('beforeinstallprompt', function(e){
+        e.preventDefault();
+        deferredPrompt = e;
+        btnInstalar.textContent = '📲 Instalar aplicativo';
+        btnInstalar.disabled = false;
+        hint.textContent = '';
+    });
+
+    /* Mostra popup após 1.2 s (após a página carregar) */
+    setTimeout(mostrarPopup, 1200);
+
+    /* Clique em instalar */
+    btnInstalar.addEventListener('click', async function(){
+        if(!deferredPrompt){
+            hint.textContent = 'Abra o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar à tela inicial".';
+            return;
+        }
+        btnInstalar.disabled = true;
+        deferredPrompt.prompt();
+        var result = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if(result.outcome === 'accepted'){
+            hint.textContent = 'Instalando...';
+        } else {
+            btnInstalar.disabled = false;
+            hint.textContent = 'Você pode instalar a qualquer momento pelo menu do navegador.';
+        }
+    });
+
+    /* Instalado */
+    window.addEventListener('appinstalled', function(){
+        deferredPrompt = null;
+        localStorage.setItem(INSTALLED_KEY, '1');
+        fecharPopup();
+    });
+
+    /* Fechar / continuar no navegador */
+    btnFechar.addEventListener('click', fecharPopup);
+
+    /* Fallback se beforeinstallprompt não disparar em 3 s */
+    setTimeout(function(){
+        if(!deferredPrompt){
+            btnInstalar.disabled = false;
+            btnInstalar.textContent = '📲 Instalar aplicativo';
+            hint.textContent = 'Use o menu do navegador para instalar.';
+        }
+    }, 3000);
+
+})();
+</script>
+<!-- ===== FIM POPUP INSTALAÇÃO PWA ===== -->
 
 </html>
