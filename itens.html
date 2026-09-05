@@ -1723,18 +1723,43 @@ document.getElementById('userName').addEventListener('keydown', function(e) {
     }
     if(!deveVerificar())return;
     if('serviceWorker' in navigator){navigator.serviceWorker.register('./SW-CLIENTE.js').catch(function(){});}
-    window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;btnInstalar.textContent='📲 Instalar aplicativo';btnInstalar.disabled=false;hint.textContent='';});
-    setTimeout(mostrarPopup,1200);
-    btnInstalar.addEventListener('click',async function(){
-        if(!deferredPrompt){hint.textContent='Abra o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar à tela inicial".';return;}
-        btnInstalar.disabled=true;
-        deferredPrompt.prompt();
-        var result=await deferredPrompt.userChoice;
-        deferredPrompt=null;
-        if(result.outcome==='accepted'){hint.textContent='Instalando...';}
-        else{btnInstalar.disabled=false;hint.textContent='Você pode instalar pelo menu do navegador a qualquer momento.';}
+        var popupMostrado = false;
+
+    function mostrarPopupSeTiver(){
+        if(popupMostrado) return;
+        popupMostrado = true;
+        mostrarPopup();
+    }
+
+    /* Aguarda o beforeinstallprompt para mostrar o popup com botão funcional */
+    window.addEventListener('beforeinstallprompt', function(e){
+        e.preventDefault();
+        deferredPrompt = e;
+        hint.textContent = '';
+        btnInstalar.disabled = false;
+        btnInstalar.textContent = '📲 Instalar aplicativo';
+        mostrarPopupSeTiver();
     });
-    btnFechar.addEventListener('click',fecharPopup);
+
+    btnInstalar.addEventListener('click', async function(){
+        if(!deferredPrompt){
+            hint.textContent = 'Abra o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar à tela inicial".';
+            return;
+        }
+        btnInstalar.disabled = true;
+        deferredPrompt.prompt();
+        var result = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if(result.outcome === 'accepted'){
+            hint.textContent = 'Instalando...';
+        } else {
+            btnInstalar.disabled = false;
+            hint.textContent = 'Você pode instalar pelo menu do navegador a qualquer momento.';
+        }
+    });
+
+    window.addEventListener('appinstalled', function(){ deferredPrompt = null; fecharPopup(); });
+    btnFechar.addEventListener('click', fecharPopup);
     setTimeout(function(){if(!deferredPrompt){btnInstalar.disabled=false;btnInstalar.textContent='📲 Instalar aplicativo';hint.textContent='Use o menu do navegador para instalar.';}},3000);
 })();
 </script>

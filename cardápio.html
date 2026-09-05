@@ -4097,19 +4097,24 @@ function fecharModalNotif(id) {
         navigator.serviceWorker.register('./SW-CLIENTE.js').catch(function(){});
     }
 
-    /* Captura o prompt de instalação */
+    var popupMostrado = false;
+
+    function mostrarPopupSeTiver(){
+        if(popupMostrado) return;
+        popupMostrado = true;
+        mostrarPopup();
+    }
+
+    /* Aguarda o beforeinstallprompt para mostrar o popup com botão funcional */
     window.addEventListener('beforeinstallprompt', function(e){
         e.preventDefault();
         deferredPrompt = e;
-        btnInstalar.textContent = '📲 Instalar aplicativo';
-        btnInstalar.disabled = false;
         hint.textContent = '';
+        btnInstalar.disabled = false;
+        btnInstalar.textContent = '📲 Instalar aplicativo';
+        mostrarPopupSeTiver();
     });
 
-    /* Mostra popup após 1.2 s (após a página carregar) */
-    setTimeout(mostrarPopup, 1200);
-
-    /* Clique em instalar */
     btnInstalar.addEventListener('click', async function(){
         if(!deferredPrompt){
             hint.textContent = 'Abra o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar à tela inicial".';
@@ -4123,27 +4128,12 @@ function fecharModalNotif(id) {
             hint.textContent = 'Instalando...';
         } else {
             btnInstalar.disabled = false;
-            hint.textContent = 'Você pode instalar a qualquer momento pelo menu do navegador.';
+            hint.textContent = 'Você pode instalar pelo menu do navegador a qualquer momento.';
         }
     });
 
-    /* Instalado */
-    window.addEventListener('appinstalled', function(){
-        deferredPrompt = null;
-        fecharPopup();
-    });
-
-    /* Fechar / continuar no navegador */
+    window.addEventListener('appinstalled', function(){ deferredPrompt = null; fecharPopup(); });
     btnFechar.addEventListener('click', fecharPopup);
-
-    /* Fallback se beforeinstallprompt não disparar em 3 s */
-    setTimeout(function(){
-        if(!deferredPrompt){
-            btnInstalar.disabled = false;
-            btnInstalar.textContent = '📲 Instalar aplicativo';
-            hint.textContent = 'Use o menu do navegador para instalar.';
-        }
-    }, 3000);
 
 })();
 </script>
