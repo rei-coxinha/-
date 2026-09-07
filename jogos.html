@@ -1753,7 +1753,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let userPhone = null;
 let clienteId = null;
 
-// ── PRÊMIOS (carregados do Supabase via jogos_configs) ────────────────
+// ── PRÊMIOS (carregados do Supabase via public.configs) ───────────────
 let PREMIOS = [
   { emoji: '🏷️', nome: '10% OFF',       tipo: 'desconto', codigo: 'REI10',  valor2: 10, chance: 25, cor: '#ff3b3b' },
   { emoji: '🚚', nome: 'Frete Grátis',  tipo: 'pessoal',  codigo: 'Frete',   chance: 20, cor: '#2196f3' },
@@ -1802,10 +1802,9 @@ async function initJogos() {
 
   try {
     // Carregar dados do cliente e configs em paralelo
-    const [cliRes, cfgRes, configsRes] = await Promise.all([
+    const [cliRes, configsRes] = await Promise.all([
       sb.from('clientes').select('id,tickets,diamantes').eq('phone', userPhone).maybeSingle(),
-      sb.from('jogos_configs').select('jogo,chave,valor'),
-      sb.from('configs').select('key,value')
+      sb.from('configs').select('jogo,key,value')
     ]);
 
     // Cliente
@@ -1841,25 +1840,15 @@ async function initJogos() {
       }
     }
 
-    // Configs dos jogos
-    // ⚠️ IMPORTANTE: Os prêmios são carregados do Supabase da tabela jogos_configs
-    // Estrutura esperada no campo "valor" (JSON):
-    // [
-    //   {
-    //     "emoji": "🏷️",
-    //     "nome": "5% OFF",
-    //     "tipo": "desconto",
-    //     "codigo": "REI5",
-    //     "valor2": 5,        ← Este campo é CRUCIAL para a mensagem de desconto!
-    //     "chance": 25,
-    //     "cor": "#ff3b3b"
-    //   },
-    //   ...
-    // ]
-    if (cfgRes.data) {
+    // Configs dos jogos — tudo centralizado na tabela public.configs
+    // Configurações gerais usam jogo = NULL. Configurações de cada jogo
+    // usam jogo = 'roleta', 'foguete', 'minado' ou 'raspadinha'.
+    if (configsRes.data) {
       const get = (jogo, chave) => {
-        const row = cfgRes.data.find(r => r.jogo === jogo && r.chave === chave);
-        return row ? JSON.parse(row.valor) : null;
+        const row = configsRes.data.find(r => (r.jogo || null) === (jogo || null) && r.key === chave);
+        if (!row || row.value == null) return null;
+        try { return JSON.parse(row.value); }
+        catch (_) { return row.value; }
       };
 
       const roletaData = get('roleta', 'premios');
@@ -1941,78 +1930,35 @@ function renderFaixasBtns() {
 
 // ── SALVAR PRÊMIO NO SUPABASE ─────────────────────────────────────────
 async function salvarPremio(premio, jogo) {
-  if (!userPhone || !premio) return;
-  if (premio.tipo === 'nada') return;
+  if (!userPhone || !premio || premio.tipo === 'nada') return;
 
-  // Descobre quantos tickets ou diamantes foram usados neste jogo
-  const jogoLow = jogo.toLowerCase();
-  const tkUsados = (jogoLow === 'roleta' || jogoLow === 'foguete') ? 1 : 0;
-  const diUsados = (jogoLow === 'campo minado' || jogoLow === 'raspadinha') ? 50 : 0;
+  // A tabela public.premios agora é exclusivamente a carteira de cupons.
+  // Outros prêmios (tickets/diamantes/brindes) continuam sendo entregues
+  // pelas rotinas próprias de cada jogo.
+  if (premio.tipo !== 'desconto') return;
 
-  // Nome do cliente
-  const _u = localStorage.getItem('salgados_user');
-  const customerName = _u ? (JSON.parse(_u).name || userPhone) : userPhone;
+  const pctDesconto = Number(
+    premio.valor2 ??
+    premio.desconto_pct ??
+    premio.desconto ??
+    parseInt(premio.codigo, 10) ?? 0
+  );
+
+  if (!Number.isFinite(pctDesconto) || pctDesconto <= 0) return;
 
   try {
-    // ── Ganhou ticket extra ───────────────────────────────────────────
-    if (premio.tipo === 'ticket') {
-      const qtd = parseInt(premio.codigo) || 1;
-      // Apenas registra na tabela premios (não atualiza clientes)
-      await sb.from('premios').insert({
-        customer_name:    customerName,
-        customer_phone:   userPhone,
-        jogo:             jogoLow,
-        descricao:        `${premio.emoji || '🎟️'} ${premio.nome} — +${qtd} ticket(s)`,
-        tickets_usados:   tkUsados,
-        diamantes_usados: diUsados,
-      });
-      return;
-    }
-
-    // ── Ganhou diamante extra ─────────────────────────────────────────
-    if (premio.tipo === 'diamante') {
-      const qtd = parseInt(premio.codigo) || 1;
-      // Apenas registra na tabela premios (não atualiza clientes)
-      await sb.from('premios').insert({
-        customer_name:    customerName,
-        customer_phone:   userPhone,
-        jogo:             jogoLow,
-        descricao:        `${premio.emoji || '💎'} ${premio.nome} — +${qtd} diamante(s)`,
-        tickets_usados:   tkUsados,
-        diamantes_usados: diUsados,
-      });
-      return;
-    }
-
-    // ── Desconto → salva cupom apenas na tabela premios ─
-    if (premio.tipo === 'desconto') {
-      const pctDesconto = premio.valor2 || parseInt(premio.codigo) || 0;
-      const descricao   = `${premio.emoji || '🎁'} ${premio.nome} — ${pctDesconto}% de desconto`;
-      // Registra na tabela premios para o histórico do admin
-      await sb.from('premios').insert({
-        customer_name:    customerName,
-        customer_phone:   userPhone,
-        jogo:             jogoLow,
-        descricao:        descricao,
-        tickets_usados:   tkUsados,
-        diamantes_usados: diUsados,
-      });
-      return;
-    }
-
-    // ── Prêmio pessoal (brinde físico, etc.) ─────────────────────────
-    const descricao = `${premio.emoji || '🎁'} ${premio.nome}${premio.codigo ? ' — ' + premio.codigo : ''}`;
-    await sb.from('premios').insert({
-      customer_name:    customerName,
-      customer_phone:   userPhone,
-      jogo:             jogoLow,
-      descricao:        descricao,
-      tickets_usados:   tkUsados,
-      diamantes_usados: diUsados,
+    // Soma +1 ao estoque existente daquele percentual.
+    // Se não existir, cria a primeira linha.
+    const { error } = await sb.rpc('adicionar_cupom', {
+      p_customer_phone: userPhone,
+      p_desconto: pctDesconto,
+      p_quantidade: 1
     });
 
-  } catch(e) { 
-    console.error('Erro ao salvar prêmio:', e);
+    if (error) throw error;
+    console.log(`[Cupom] +1 cupom de ${pctDesconto}% para ${userPhone}`);
+  } catch (e) {
+    console.error('Erro ao guardar cupom:', e);
   }
 }
 

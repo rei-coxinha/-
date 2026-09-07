@@ -11,7 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 
-
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -19,10 +18,10 @@
             --success-dark: #1aad52;
             --danger: #e74c3c;
             --warning: #f1c40f;
-            --theme-gradient: linear-gradient(135deg, #4dd0ff 0%, #0099ff 25%, #0052cc 50%, #003d99 75%, #0066ff 100%);
-            --theme-header-bg: #001a33;
-            --theme-header-border: rgba(0, 153, 255, 0.2);
-            --theme-shadow: 0 12px 40px rgba(0, 153, 255, 0.6);
+            --theme-gradient: linear-gradient(135deg, #6e6e6e 0%, #3a3a3a 30%, #1a1a1a 60%, #3a3a3a 80%, #555 100%);
+            --theme-header-bg: #111111;
+            --theme-header-border: rgba(120,120,120,0.2);
+            --theme-shadow: 0 12px 40px rgba(80,80,80,0.6);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -79,7 +78,6 @@
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
         #toast.error { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         #toast.warning { background: linear-gradient(135deg, #f1c40f, #e67e22); color: #fff; }
-
 
 
         /* ===== SPINNER ===== */
@@ -545,12 +543,6 @@
             pointer-events: auto; cursor: pointer;
             box-shadow: 0 6px 20px rgba(37,211,102,0.4);
             transform: scale(1.02);
-        }
-        .btn-save-fav {
-            flex: 1; background: linear-gradient(135deg, #f1c40f, #e67e22);
-            color: white; border: none; padding: 14px; border-radius: 16px;
-            font-weight: 800; cursor: pointer; font-size: 14px;
-            display: none; box-shadow: 0 4px 14px rgba(241,196,15,0.4);
         }
 
         /* ===== MODAIS ===== */
@@ -1067,7 +1059,6 @@
 
             <!-- Benefícios -->
             <div class="ls-benefits">
-                <div class="ls-benefit">⭐ Pedido favorito</div>
                 <div class="ls-benefit">🛵 Rastrear entrega</div>
             </div>
 
@@ -1107,7 +1098,6 @@
         </div>
         <!-- 🔔 direita -->
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-            <button id="favBtnHeader" class="header-btn" onclick="openFavoriteModal()" style="display:none;width:48px;height:48px;align-items:center;justify-content:center;font-size:21px;background:rgba(20,90,40,0.85);border:1px solid rgba(37,211,102,0.25);box-shadow:0 3px 12px rgba(0,0,0,0.3);">⭐</button>
         </div>
     </div>
 
@@ -1126,26 +1116,10 @@
             <span class="footer-label">Total</span>
             <span class="footer-total" id="totalLabel">R$ 0,00</span>
         </div>
-        <button id="btnSaveFav" class="btn-save-fav" onclick="saveAsFavorite()">⭐ Salvar</button>
         <button id="btnMain" class="btn-pedir" onclick="showPayModal()">Fazer Pedido</button>
     </div>
 </div>
 
-
-<div id="favModal" class="modal">
-    <div class="modal-content" style="background:linear-gradient(160deg,#1a1a2e,#16213e);">
-        <div style="width:40px;height:5px;background:rgba(255,255,255,0.15);border-radius:3px;margin:0 auto 20px;"></div>
-        <div style="position:relative; text-align:center; margin-bottom:18px;">
-            <h3 style="font-size:18px;font-weight:800;color:white;">Seu Pedido Favorito ⭐</h3>
-            <button onclick="document.getElementById('favModal').classList.remove('active')" style="position:absolute; top:-3px; right:-3px; width:34px; height:34px; border-radius:50%; border:none; background:linear-gradient(135deg,#e74c3c,#c0392b); color:white; font-size:16px; font-weight:bold; cursor:pointer; line-height:1; box-shadow:0 3px 10px rgba(231,76,60,0.4);">✕</button>
-        </div>
-        <div id="favDetails" style="background:rgba(255,255,255,0.07); padding:16px; border-radius:16px; margin-bottom:20px; line-height:1.7; border:1px solid rgba(255,255,255,0.1);"></div>
-        <div style="display:flex; gap:10px;">
-            <button onclick="addFavToCart()" style="flex:1; padding:14px; background:linear-gradient(135deg,#3498db,#2980b9); color:white; border:none; border-radius:14px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(52,152,219,0.35);">🛒 Carrinho</button>
-            <button onclick="pedirFavorito()" style="flex:2; padding:14px; background:linear-gradient(135deg,#25d366,#1aad52); color:white; border:none; border-radius:14px; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(37,211,102,0.35);">✅ Fazer Pedido</button>
-        </div>
-    </div>
-</div>
 
 <!-- Modal Pagamento -->
 <div id="payModal" class="modal">
@@ -1270,8 +1244,6 @@
 
 
 <!-- ===== POPUP PERMISSÃO NOTIFICAÇÃO ===== -->
-
-
 
 
 <!-- ===== ANIMAÇÃO ROBOZINHO CONFIRMANDO ===== -->
@@ -1450,7 +1422,7 @@ function showToast(msg, type = 'success', duration = 2500) {
     t.textContent = msg;
 
     // Pega o tema selecionado
-    const temaSelecionado = localStorage.getItem('temaSelecionado') || 'azul';
+    const temaSelecionado = localStorage.getItem('temaSelecionado') || 'grafite';
 
     if (type === 'success') {
         if (temaSelecionado === 'roxo') {
@@ -1479,8 +1451,7 @@ let currentOrderTotal = 0;
 let creditDiscount = 0;
 let cupomId = null;
 let cupomDescontoPct = 0;
-let favorites = {};
-let temaSelecionado = localStorage.getItem('temaSelecionado') || 'azul';
+let temaSelecionado = localStorage.getItem('temaSelecionado') || 'grafite';
 
 // ===== UTILS DE INIT =====
 function _esconderLoading() {
@@ -1554,21 +1525,11 @@ window.onload = async () => {
             payModal.classList.remove('active');
             return;
         }
-
-        // 5. Modal de favoritos
-        const favModal = document.getElementById('favModal');
-        if (favModal && favModal.classList.contains('active')) {
-            favModal.classList.remove('active');
-            return;
-        }
     });
 
     try {
         // Adicionar histórico inicial
         window.history.pushState({ state: 'home' }, '', window.location.href);
-
-        // Carregar favoritos da sessão local (fallback offline)
-        favorites = JSON.parse(localStorage.getItem('rei_favs')) || {};
 
         // Link especial: usa o MESMO auth() do login manual e o MESMO armazenamento.
         const loginEspecialInicial = obterLoginEspecial();
@@ -1594,20 +1555,9 @@ window.onload = async () => {
                     user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa };
                     // Salvar dados completos para uso offline
                     localStorage.setItem('rei_user', JSON.stringify(user));
-                    // Carregar favorito salvo no Supabase (tem prioridade sobre o localStorage)
-                    if (client.saved_order && client.saved_order.trim()) {
-                        favorites[client.phone] = {
-                            saved_order: client.saved_order,
-                            saved_order_total: Number(client.saved_order_total) || 0
-                        };
-                    } else {
-                        favorites[client.phone] = null;
-                    }
-                    localStorage.setItem('rei_favs', JSON.stringify(favorites));
                     clearTimeout(timeoutGlobal);
                     _mostrarApp();
                     atualizarCabecalho();
-                    checkFavoriteBtn();
                     carregarPrivacidade();
                     carregarTemaSalvo();
                     await loadProducts();
@@ -1628,7 +1578,6 @@ window.onload = async () => {
                         clearTimeout(timeoutGlobal);
                         _mostrarApp();
                         atualizarCabecalho();
-                        checkFavoriteBtn();
                         carregarPrivacidade();
                         carregarTemaSalvo();
                         render();
@@ -1650,7 +1599,6 @@ window.onload = async () => {
                     clearTimeout(timeoutGlobal);
                     _mostrarApp();
                     atualizarCabecalho();
-                    checkFavoriteBtn();
                     carregarPrivacidade();
                     carregarTemaSalvo();
                     render();
@@ -1678,7 +1626,6 @@ window.onload = async () => {
             clearTimeout(timeoutGlobal);
             _mostrarApp();
             atualizarCabecalho();
-            checkFavoriteBtn();
             carregarPrivacidade();
             carregarTemaSalvo();
             render();
@@ -1784,17 +1731,6 @@ async function auth() {
 
     user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa };
 
-    // Carregar favorito salvo no Supabase
-    if (client.saved_order && client.saved_order.trim()) {
-        favorites[client.phone] = {
-            saved_order: client.saved_order,
-            saved_order_total: Number(client.saved_order_total) || 0
-        };
-    } else {
-        favorites[client.phone] = null;
-    }
-    localStorage.setItem('rei_favs', JSON.stringify(favorites));
-
     // Salvar número e dados completos do usuário (funciona offline)
     localStorage.setItem('rei_phone', phone);
     localStorage.setItem('rei_user', JSON.stringify(user));
@@ -1804,14 +1740,12 @@ async function auth() {
     document.getElementById('app').style.display = 'block';
 
     atualizarCabecalho();
-    checkFavoriteBtn();
     carregarPrivacidade();
     carregarTemaSalvo();
     await loadProducts();
     iniciarRealtimeCliente(phone);
     iniciarAtualizacaoPeriodicaSaldo();
     btn.disabled = false; btn.textContent = "Entrar";
-
 
 
     // ✅ POPUP DE OFERTA — aparece todo login, baseado no created_at do Supabase
@@ -1965,7 +1899,6 @@ function confirmarLogout() {
         window._bcSend && window._bcSend({ type: 'LOGOUT' });
         cart = {};
         user = null;
-        favorites = {};
         document.getElementById('app').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
         document.getElementById('userPhone').value = '';
@@ -2080,8 +2013,6 @@ function render() {
         if (btnMain) {
             const hasItems = total > 0;
             btnMain.className = hasItems ? "btn-pedir active" : "btn-pedir";
-            const btnSaveFav = document.getElementById('btnSaveFav');
-            if (btnSaveFav) btnSaveFav.style.display = hasItems ? "inline-flex" : "none";
         }
 
         renderScheduled = false;
@@ -2186,184 +2117,6 @@ function atualizarCabecalho() {
     if (user) localStorage.setItem('rei_user', JSON.stringify(user));
 }
 
-// ===== FAVORITOS =====
-// saved_order = texto puro: "✅ 2x Coxinha de Frango\n✅ 1x Enroladinho\n"
-// saved_order_total = número
-
-// cart {id:qty} → texto pedido + total
-function cartToText() {
-    let textoFritos = '';
-    let textoCrus = '';
-    let total = 0;
-    const temOferta = clienteTemOferta(); // Recalcular oferta em tempo real
-    
-    for (let id in cart) {
-        const p = products.find(x => x.id == id);
-        if (p) { 
-            const qty = parseInt(cart[id]) || 0;
-            const hasPromo = !!(p.pricePromo && temOferta);
-            const price = hasPromo ? parseFloat(p.pricePromo) : parseFloat(p.price) || 0;
-            
-
-            const linha = `✅ ${qty}x ${p.name}`;
-            const cat = (p.categoria || '').toLowerCase().trim();
-            if (cat === 'crus') {
-                textoCrus += linha + '\n';
-            } else {
-                textoFritos += linha + '\n';
-            }
-            total += price * qty;
-        }
-    }
-    
-    let texto = '';
-    if (textoFritos) {
-        texto += '━━━━━🔥fritos🔥━━━━━\n' + textoFritos;
-    }
-    if (textoCrus) {
-        texto += '━━━━━❄️ crus ❄️━━━━━\n' + textoCrus;
-    }
-    
-    return { texto, total };
-}
-
-// Texto pedido → cart {id:qty}
-function textToCart(savedOrderText) {
-    const newCart = {};
-    const linhas = (savedOrderText || '').replace(/✅ /g, '').split('\n').filter(Boolean);
-    let catAtual = null; // null = sem cabeçalho ainda (texto legado)
-    linhas.forEach(linha => {
-        if (linha.includes('fritos')) { catAtual = 'fritos'; return; }
-        if (linha.includes('crus'))   { catAtual = 'crus';   return; }
-        const match = linha.match(/^(\d+)x\s+(.+)$/);
-        if (!match) return;
-        const qty  = parseInt(match[1]);
-        const nome = match[2].trim();
-        let prod;
-        if (catAtual) {
-            // Busca pelo nome E pela categoria correta
-            prod = products.find(p => p.name.trim() === nome && (p.categoria || '').toLowerCase().trim() === catAtual);
-        }
-        // Fallback: sem cabeçalho ou não achou com categoria, pega o primeiro pelo nome
-        if (!prod) prod = products.find(p => p.name.trim() === nome);
-        if (prod) newCart[prod.id] = (newCart[prod.id] || 0) + qty;
-    });
-    return newCart;
-}
-
-function checkFavoriteBtn() {
-    if (!user || !user.phone) return;
-    const fav = favorites[user.phone];
-    const btn = document.getElementById('favBtnHeader');
-    if (!btn) return;
-    btn.style.display = (fav && fav.saved_order && fav.saved_order.trim()) ? 'inline-flex' : 'none';
-}
-
-async function saveAsFavorite() {
-    if (Object.keys(cart).length === 0) return;
-
-    const { texto, total } = cartToText();
-
-    const { error } = await sb.from("clientes").update({
-        saved_order: texto,
-        saved_order_total: total
-    }).eq("phone", user.phone);
-    if (error) { console.warn('Erro ao salvar favorito:', error); showToast('❌ Erro ao salvar favorito', 'error'); return; }
-
-    favorites[user.phone] = { saved_order: texto, saved_order_total: total };
-    localStorage.setItem('rei_favs', JSON.stringify(favorites));
-
-    checkFavoriteBtn();
-    showToast('⭐ Pedido favorito salvo!', 'success', 2500);
-}
-
-function openFavoriteModal() {
-    const fav = favorites[user.phone];
-    if (!fav || !fav.saved_order) return; // showToast("Nenhum pedido salvo", 'warning');
-
-    const linhas = fav.saved_order.replace(/✅ /g, '').split('\n').filter(Boolean);
-
-    // Recalcular total se não existir ou for inválido
-    let total = Number(fav.saved_order_total) || 0;
-    if (isNaN(total) || total === 0) {
-        total = 0;
-        linhas.forEach(linha => {
-            const match = linha.match(/^(\d+)x\s+(.+)$/);
-            if (match) {
-                const qty = parseInt(match[1]);
-                const nomeProduto = match[2].trim();
-                const produto = products.find(p => p.name.trim() === nomeProduto);
-                if (produto) total += qty * (parseFloat(produto.price) || 0);
-            }
-        });
-    }
-
-    // Separar itens pelo cabeçalho da seção + categoria real do produto
-    const itensFritos = [];
-    const itensCrus = [];
-    let secaoAtual = null;
-    linhas.forEach(linha => {
-        if (linha.includes('fritos')) { secaoAtual = 'fritos'; return; }
-        if (linha.includes('crus'))   { secaoAtual = 'crus';   return; }
-        const match = linha.match(/^(\d+)x\s+(.+)$/);
-        if (!match) return;
-        const qty = match[1];
-        const nomeProduto = match[2].trim();
-        // Busca produto pelo nome e pela seção (para distinguir fritos/crus de mesmo nome)
-        let produto = secaoAtual
-            ? products.find(p => p.name.trim() === nomeProduto && (p.categoria || '').toLowerCase().trim() === secaoAtual)
-            : null;
-        if (!produto) produto = products.find(p => p.name.trim() === nomeProduto);
-        if (!produto) return;
-        const cat = secaoAtual || (produto.categoria || 'fritos').toLowerCase().trim();
-        const imagem = produto.img || '';
-        const imgTag = imagem
-            ? `<img src="${imagem}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;">`
-            : `<div style="width:72px;height:72px;border-radius:10px;background:#333;display:flex;align-items:center;justify-content:center;font-size:28px;">🍗</div>`;
-        const card = `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px;background:rgba(255,255,255,0.06);border-radius:12px;border:1px solid rgba(255,255,255,0.1);">
-            ${imgTag}
-            <div style="text-align:center;font-size:12px;font-weight:700;color:rgba(255,255,255,0.9);">${qty}x ${nomeProduto}</div>
-        </div>`;
-        if (cat === 'crus') itensCrus.push(card);
-        else itensFritos.push(card);
-    });
-
-    function buildSecao(label, cor, itens) {
-        if (!itens.length) return '';
-        return `<div style="margin-bottom:14px;">
-            <div style="font-size:11px;font-weight:900;color:${cor};letter-spacing:1px;margin-bottom:8px;">${label}</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${itens.join('')}</div>
-        </div>`;
-    }
-
-    let html = buildSecao('🔥 FRITOS', '#e74c3c', itensFritos);
-    html    += buildSecao('🧊 CRUS',   '#3498db', itensCrus);
-    html    += `<div style="text-align:center;font-size:16px;font-weight:800;color:white;margin-top:8px;">Total: R$ ${total.toFixed(2).replace('.', ',')}</div>`;
-
-    document.getElementById('favDetails').innerHTML = html;
-    document.getElementById('favModal').classList.add('active');
-    window.history.pushState({ state: 'fav_modal_aberto' }, '', window.location.href);
-}
-
-function addFavToCart() {
-    const fav = favorites[user.phone];
-    if (!fav || !fav.saved_order) return;
-    cart = {};
-    cart = textToCart(fav.saved_order);
-    render();
-    document.getElementById('favModal').classList.remove('active');
-}
-
-function pedirFavorito() {
-    const fav = favorites[user.phone];
-    if (!fav || !fav.saved_order) return;
-    cart = {};
-    cart = textToCart(fav.saved_order);
-    render();
-    document.getElementById('favModal').classList.remove('active');
-    setTimeout(() => showPayModal(), 200);
-}
-
 // ===== PAGAMENTO =====
 function renderItensResumo() {
     const el = document.getElementById('itensResumo');
@@ -2426,7 +2179,6 @@ function renderItensResumo() {
 }
 
 function showPayModal() {
-    lerPedidoVoz();
     document.getElementById('payModal').classList.add('active');
     window.history.pushState({ state: 'pay_modal_aberto' }, '', window.location.href);
     method = 'PAGA NA ENTREGA';
@@ -2496,36 +2248,31 @@ async function carregarCupons() {
     if (!box || !lista) return;
 
     try {
-        const { data, error } = await sb.from('premios')
-            .select('id, descricao, jogo, created_at')
-            .eq('customer_phone', user.phone)
-            .order('created_at', { ascending: false });
-
-        if (error) { console.warn('Erro ao carregar cupons:', error); }
-
-        // Agrupar cupons de desconto por porcentagem
-        const grupos = {};
-        (data || []).forEach(p => {
-            const match = p.descricao.match(/(\d+)%/);
-            const pct = match ? Number(match[1]) : 0;
-            if (pct > 0) {
-                if (!grupos[pct]) grupos[pct] = { pct, ids: [], label: p.descricao };
-                grupos[pct].ids.push(p.id);
-            }
+        // A tabela premios está protegida por RLS; a leitura é feita por RPC.
+        const { data, error } = await sb.rpc('listar_cupons', {
+            p_customer_phone: user.phone
         });
 
-        const cupons = Object.values(grupos).sort((a, b) => b.pct - a.pct);
+        if (error) throw error;
+
+        const cupons = (data || []).map(c => ({
+            pct: Number(c.desconto),
+            quantidade: Number(c.quantidade) || 0
+        })).filter(c => c.pct > 0 && c.quantidade > 0);
 
         const temCredito = user?.debt < 0;
         const creditValue = temCredito ? Math.abs(user.debt) : 0;
 
-        if (!cupons.length && !temCredito) { box.style.display = 'none'; return; }
+        if (!cupons.length && !temCredito) {
+            box.style.display = 'none';
+            cupomDescontoPct = 0;
+            cupomId = null;
+            return;
+        }
 
         box.style.display = 'block';
-
         let cardsHtml = `<div style="display:flex;flex-wrap:wrap;gap:8px;">`;
 
-        // Card de crédito (estilo igual ao cupom)
         if (temCredito) {
             cardsHtml += `<div style="position:relative;cursor:default;border-radius:12px;padding:12px 10px;min-width:72px;text-align:center;
                 background:#e8f4ff;border:2px solid #3498db;box-shadow:0 0 0 3px rgba(52,152,219,0.2);">
@@ -2535,18 +2282,16 @@ async function carregarCupons() {
             </div>`;
         }
 
-        // Cards de cupom
         cardsHtml += cupons.map((c, i) => {
-            const qtd = c.ids.length;
             const isSelected = (i === 0);
-            return `<div onclick="selecionarCupom(${c.pct}, '${c.ids[0]}', this)"
+            return `<div onclick="selecionarCupom(${c.pct}, this)"
                 style="position:relative;cursor:pointer;border-radius:12px;padding:12px 10px;min-width:72px;text-align:center;
                 background:${isSelected ? '#e8f8f0' : 'white'};
                 border:2px solid ${isSelected ? '#25d366' : '#f1c40f'};
                 box-shadow:${isSelected ? '0 0 0 3px rgba(37,211,102,0.2)' : 'none'};
                 transition:all 0.15s;"
                 data-selected="${isSelected ? '1' : '0'}">
-                ${qtd > 1 ? `<div style="position:absolute;top:-8px;right:-8px;background:#25d366;color:white;font-size:10px;font-weight:900;padding:2px 6px;border-radius:20px;min-width:20px;">${qtd}x</div>` : ''}
+                ${c.quantidade > 1 ? `<div style="position:absolute;top:-8px;right:-8px;background:#25d366;color:white;font-size:10px;font-weight:900;padding:2px 6px;border-radius:20px;min-width:20px;">${c.quantidade}x</div>` : ''}
                 <div style="font-size:18px;margin-bottom:4px;">🎟️</div>
                 <div class="cupom-pct" style="font-size:13px;font-weight:900;color:#b8860b;">${c.pct}%</div>
                 <div class="cupom-off" style="font-size:10px;font-weight:700;color:#999;">OFF</div>
@@ -2556,24 +2301,25 @@ async function carregarCupons() {
         cardsHtml += `</div>`;
         lista.innerHTML = cardsHtml;
 
-        // Aplica automaticamente o cupom de maior desconto
         if (cupons.length > 0) {
             const maiorCupom = cupons[0];
             cupomDescontoPct = maiorCupom.pct;
-            cupomId = maiorCupom.ids[0];
+            cupomId = maiorCupom.pct;
+        } else {
+            cupomDescontoPct = 0;
+            cupomId = null;
         }
 
-        // Aplica crédito ou atualiza total
         if (temCredito) applyCreditCalculation(creditValue);
         else updateFinalTotalDisplay();
 
     } catch(e) {
-        console.warn('Erro inesperado ao carregar cupons:', e);
+        console.warn('Erro ao carregar cupons:', e);
         box.style.display = 'none';
     }
 }
 
-function selecionarCupom(pct, id, el) {
+function selecionarCupom(pct, el) {
     // Toggle: se já está selecionado, desmarca
     if (el.dataset.selected === '1') {
         el.style.background = 'white';
@@ -2601,7 +2347,7 @@ function selecionarCupom(pct, id, el) {
     el.dataset.selected = '1';
     // Aplica cupom e recalcula crédito sobre o valor com desconto
     cupomDescontoPct = pct;
-    cupomId = id;
+    cupomId = pct;
     if (user?.debt < 0) applyCreditCalculation(Math.abs(user.debt));
     else updateFinalTotalDisplay();
 }
@@ -2657,11 +2403,10 @@ async function confirmOrder() {
     const creditoUsado = useCredit ? creditDiscount : 0;
     const finalTotal = Math.max(0, total - creditoUsado - descontoCupomValor);
 
-    const cupomIdParaExcluir = cupomId;
     const cupomPctParaExcluir = cupomDescontoPct;
-    // Embute descontos no items para recuperar no cancelamento (sem colunas extras)
-    if (cupomIdParaExcluir && cupomPctParaExcluir > 0) {
-        pedidoTexto += `🏷️ CUPOM:${cupomPctParaExcluir}:${cupomIdParaExcluir}\n`;
+    // Registra apenas o percentual no pedido; a carteira é consumida por RPC.
+    if (cupomPctParaExcluir > 0) {
+        pedidoTexto += `🏷️ CUPOM:${cupomPctParaExcluir}%\n`;
     }
     if (creditoUsado > 0) {
         pedidoTexto += `💳 CREDITO:${creditoUsado.toFixed(2)}\n`;
@@ -2703,10 +2448,14 @@ async function confirmOrder() {
         }
         if (!pedidoConfirmado) throw new Error('Pedido não foi confirmado no banco após 3 tentativas');
 
-        // Excluir cupom do Supabase quando usado
-        if (cupomIdParaExcluir && cupomPctParaExcluir > 0) {
-            const { error: errCupom } = await sb.from('premios').delete().eq('id', cupomIdParaExcluir);
-            if (errCupom) console.warn('Erro ao excluir cupom:', errCupom);
+        // Consumir exatamente 1 cupom do percentual escolhido.
+        if (cupomPctParaExcluir > 0) {
+            const { data: cupomConsumido, error: errCupom } = await sb.rpc('usar_cupom', {
+                p_customer_phone: user.phone,
+                p_desconto: cupomPctParaExcluir
+            });
+            if (errCupom) throw errCupom;
+            if (cupomConsumido !== true) throw new Error('Cupom não pôde ser consumido.');
         }
 
         // Tickets e Diamantes liberados pelo ADM ao confirmar pagamento
@@ -2835,7 +2584,6 @@ function togglePrivacidadeHeader() {
 }
 
 
-
 function abrirPainelSino() {
     document.getElementById('painelSino').style.transform = 'translateY(0)';
     renderHistoricoSaldo();
@@ -2847,79 +2595,6 @@ function fecharPainelSino() {
     const p = document.getElementById('painelSino');
     p.style.transition = 'transform 0.35s cubic-bezier(0.4,0,0.2,1)';
     p.style.transform = 'translateY(-100%)';
-}
-
-// ===== LEITURA DO PEDIDO 🗣️ =====
-let leituraPedidoAtiva = localStorage.getItem('leitura_pedido') === 'true';
-
-function initLeituraToggle() {
-    atualizarVisualLeitura(leituraPedidoAtiva);
-}
-
-// Pré-aquece o motor de voz no primeiro toque (elimina delay)
-let vozAquecida = false;
-document.addEventListener('touchstart', () => {
-    if (vozAquecida || !('speechSynthesis' in window)) return;
-    vozAquecida = true;
-    const silencio = new SpeechSynthesisUtterance(' ');
-    silencio.volume = 0;
-    silencio.lang = 'pt-BR';
-    window.speechSynthesis.speak(silencio);
-}, { once: true });
-
-function toggleLeituraPedido() {
-    leituraPedidoAtiva = !leituraPedidoAtiva;
-    localStorage.setItem('leitura_pedido', leituraPedidoAtiva);
-    atualizarVisualLeitura(leituraPedidoAtiva);
-    const msg = new SpeechSynthesisUtterance(leituraPedidoAtiva ? 'Ligado' : 'Desligado');
-    msg.lang = 'pt-BR';
-    msg.rate = 1;
-    msg.pitch = 1;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(msg);
-}
-
-function atualizarVisualLeitura(ativo) {
-    const labelTop = document.getElementById('labelLeituraTop');
-    if (!labelTop) return;
-    if (ativo) {
-        labelTop.style.color = '#25d366';
-        labelTop.textContent = '● LIGADO';
-    } else {
-        labelTop.style.color = '#ff4d4d';
-        labelTop.textContent = '● DESLIGADO';
-    }
-}
-
-function lerPedidoVoz() {
-    if (!leituraPedidoAtiva) return;
-    if (!('speechSynthesis' in window)) return;
-
-    const itens = [];
-    for (let id in cart) {
-        const p = products.find(x => x.id == id);
-        if (!p || !cart[id]) continue;
-        const qtd = cart[id];
-        const nome = p.name.replace(/Cox\.\s*/gi, 'coxinha de ').replace(/P\.\s*/gi, 'pão de ').trim();
-        const femininos = ['coxinha','enroladinha','bolinha','empada','esfiha','pizza','pastel','mini'];
-        const ehF = femininos.some(f => nome.toLowerCase().includes(f));
-        if (qtd === 1) {
-            itens.push(`${ehF ? 'uma' : 'um'} ${nome}`);
-        } else {
-            itens.push(`${qtd} ${nome}s`);
-        }
-    }
-
-    if (itens.length === 0) return;
-
-    // Sem vírgulas entre itens para evitar pausas
-    const frase = 'Você vai comprar ' + itens.join(' ');
-
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(frase);
-    utter.lang = 'pt-BR';
-
-    window.speechSynthesis.speak(utter);
 }
 
 async function salvarPrivacidade(valor) {
@@ -3100,17 +2775,6 @@ function fecharPainelControle() {
                 <img src="./fotos/tema.png" alt="Personalizar Tema" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:drop-shadow(0 4px 14px rgba(0,212,255,0.4));"/>
             </div>
 
-            <!-- CARD: Leitura -->
-            <div onclick="toggleLeituraPedido()" id="cardLeituraPedido"
-                style="cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.15s;
-                background:linear-gradient(145deg,#0a1f12,#0e2a1a);
-                border:1px solid rgba(0,255,120,0.2);border-radius:22px;
-                padding:0;
-                box-shadow:0 6px 24px rgba(0,255,120,0.1);position:relative;overflow:hidden;aspect-ratio:1;"
-                ontouchstart="this.style.transform='scale(0.96)'" ontouchend="this.style.transform='scale(1)'">
-                <div id="labelLeituraTop" style="position:absolute;top:10px;right:12px;font-size:9px;font-weight:800;color:#25d366;letter-spacing:0.5px;">● LIGADO</div>
-                <img src="./fotos/leitura.png" alt="Leitura do pedido" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:drop-shadow(0 4px 14px rgba(0,255,120,0.5));"/>
-            </div>
 
         </div>
 
@@ -3919,8 +3583,6 @@ async function registrarPushCliente(phone) {
         });
     }, { passive: true });
 })();
-
-
 
 
 // ===== MODAIS DE NOTIFICAÇÃO =====
