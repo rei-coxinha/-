@@ -1087,8 +1087,7 @@ async function carregarPedidos() {
             .select('id, total, items, created_at, status')
             .eq('customer_phone', user.phone)
             .not('items', 'ilike', '%🎮%')
-            .neq('status', 'Entregue')
-            .order('created_at', { ascending: false })
+                        .order('created_at', { ascending: false })
             .limit(15);
 
         if (!pedidos || pedidos.length === 0) {
@@ -1186,7 +1185,7 @@ async function carregarPedidos() {
             // Trilha de status (4 etapas)
             var etapas = [
                 { key: 'Em produção',          icone: '🔥', label: 'Em produção' },
-                { key: 'Aguardando Entregador', icone: '📦', label: 'Espera' },
+                { key: 'Aguardando Entregador', icone: '📦', label: 'Aguardando Entregador' },
                 { key: 'A caminho',             icone: '🛵', label: 'A caminho' },
                 { key: 'Entregue',              icone: '✅', label: 'Entregue' }
             ];
