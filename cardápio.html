@@ -1900,6 +1900,22 @@ async function confirmarLogout() {
         
         // Salvar device_id ANTES de limpar tudo
         const deviceIdPush = localStorage.getItem('rei_coxinha_push_device_id');
+        const phoneBefore = localStorage.getItem('rei_phone');
+        
+        // ─────── 0️⃣ LIMPAR REGISTROS ANTIGOS DO BANCO ───────
+        if (phoneBefore && deviceIdPush) {
+            try {
+                // Deleta registro antigo deste device + phone antes de unsubscribe
+                await sb.from('web_push_subscriptions')
+                    .delete()
+                    .eq('device_id', deviceIdPush)
+                    .eq('phone', phoneBefore)
+                    .eq('destinatario', 'cliente');
+                console.log('[LOGOUT] ✅ Registros antigos de push deletados do banco');
+            } catch (e) {
+                console.warn('[LOGOUT] ⚠️ Erro ao limpar banco:', e.message);
+            }
+        }
         
         // ─────── 1️⃣ LIMPAR LOCALSTORAGE (mas preservar device ID) ───────
         localStorage.removeItem('rei_phone');
@@ -3601,72 +3617,75 @@ async function registrarPushCliente(phone) {
             await navigator.serviceWorker.ready;
             try { await reg.update(); } catch (_) {}
 
-            // Reutiliza a subscription existente sempre que o navegador ainda a possuir.
-            let subscription = await reg.pushManager.getSubscription();
-
-            if (!subscription) {
-                console.log('[Push] Nenhuma subscription local — criando uma nova.');
-                subscription = await reg.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-                });
+            // 🔄 SEMPRE cria uma NOVA subscription (remove a antiga)
+            let subscriptionAntiga = await reg.pushManager.getSubscription();
+            if (subscriptionAntiga) {
+                console.log('[Push] Removendo subscription antiga...');
+                await subscriptionAntiga.unsubscribe();
             }
+            
+            console.log('[Push] Criando NOVA subscription...');
+            const subscription = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
 
             const sub = subscription.toJSON();
             if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
                 throw new Error('Subscription Push incompleta.');
             }
 
-            // Remove somente registros antigos deste mesmo aparelho.
-            const { error: deleteDeviceError } = await sb
+            // 🔍 DETECTA TROCA DE DEVICE: Se este phone tá registrado em outro device
+            // Deleta subscription antiga pra não receber em celular que não tá usando mais
+            console.log('[Push] 🔍 Verificando se mudou de celular...');
+            const { data: subscricoesCelulares } = await sb
                 .from('web_push_subscriptions')
-                .delete()
-                .eq('device_id', deviceId)
-                .eq('destinatario', 'cliente')
-                .neq('endpoint', sub.endpoint);
-
-            if (deleteDeviceError) throw deleteDeviceError;
-
-            // Um endpoint só pode representar o aparelho atual.
-            // Se ficou registrado em outro device_id, remove o registro antigo.
-            const { error: deleteEndpointError } = await sb
-                .from('web_push_subscriptions')
-                .delete()
-                .eq('endpoint', sub.endpoint)
+                .select('device_id')
+                .eq('phone', String(phone))
                 .eq('destinatario', 'cliente')
                 .neq('device_id', deviceId);
 
-            if (deleteEndpointError) throw deleteEndpointError;
-
-            // Procura o registro atual antes de inserir para não criar duplicata.
-            const { data: existente, error: buscaError } = await sb
-                .from('web_push_subscriptions')
-                .select('id')
-                .eq('device_id', deviceId)
-                .eq('destinatario', 'cliente')
-                .eq('endpoint', sub.endpoint)
-                .maybeSingle();
-
-            if (buscaError) throw buscaError;
-
-            if (existente?.id) {
-                const { error: updateError } = await sb
+            if (subscricoesCelulares && subscricoesCelulares.length > 0) {
+                console.log(`[Push] ⚠️ MUDOU DE CELULAR! Encontrou ${subscricoesCelulares.length} subscription(ões) em outro(s) device(s)`);
+                
+                // Deleta as subscriptions antigas dos outros devices
+                const { error: deleteOutrosDevicesError } = await sb
                     .from('web_push_subscriptions')
-                    .update({
-                        phone: String(phone),
-                        p256dh: sub.keys.p256dh,
-                        auth: sub.keys.auth,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', existente.id);
-
-                if (updateError) throw updateError;
-
-                console.log('[Push] ✅ Subscription já existente — apenas atualizada.');
-                return true;
+                    .delete()
+                    .eq('phone', String(phone))
+                    .eq('destinatario', 'cliente')
+                    .neq('device_id', deviceId);
+                
+                if (deleteOutrosDevicesError) {
+                    console.warn('[Push] ⚠️ Erro ao deletar subscriptions dos outros celulares:', deleteOutrosDevicesError.message);
+                } else {
+                    console.log('[Push] ✅ Subscriptions dos outros celulares DELETADAS - só recebe neste agora!');
+                    // Aviso visual
+                    if (typeof showToast === 'function') {
+                        showToast({
+                            type: 'info',
+                            title: '📱 Novo Celular Detectado',
+                            body: 'Notificações ativadas apenas neste aparelho.',
+                            duration: 3000
+                        });
+                    }
+                }
+            } else {
+                console.log('[Push] ✓ Mesmo device ou primeira vez neste phone');
             }
 
-            const { error: pushError } = await sb
+            // 🗑️ DELETA TODAS as antigas deste device
+            const { error: deleteError } = await sb
+                .from('web_push_subscriptions')
+                .delete()
+                .eq('device_id', deviceId)
+                .eq('destinatario', 'cliente');
+
+            if (deleteError) throw deleteError;
+            console.log('[Push] ✅ Subscriptions antigas deletadas');
+
+            // ➕ INSERE NOVA subscription fresca
+            const { error: insertError } = await sb
                 .from('web_push_subscriptions')
                 .insert({
                     phone: String(phone),
@@ -3677,9 +3696,9 @@ async function registrarPushCliente(phone) {
                     auth: sub.keys.auth
                 });
 
-            if (pushError) throw pushError;
+            if (insertError) throw insertError;
 
-            console.log('[Push] ✅ Subscription salva sem duplicidade.');
+            console.log('[Push] ✅ NOVA subscription criada e salva!');
             return true;
         } catch (err) {
             console.warn('[Push] ❌ Erro ao registrar push do cliente:', err);
