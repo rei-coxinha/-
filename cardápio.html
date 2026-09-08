@@ -1893,19 +1893,99 @@ function fecharLogoutPopup() {
     setTimeout(() => { if (popup) popup.remove(); }, 350);
 }
 
-function confirmarLogout() {
+async function confirmarLogout() {
     fecharLogoutPopup();
-    setTimeout(() => {
+    setTimeout(async () => {
+        console.log('[LOGOUT] 🚪 Iniciando limpeza completa...');
+        
+        // ─────── 1️⃣ LIMPAR LOCALSTORAGE ───────
         localStorage.removeItem('rei_phone');
         localStorage.removeItem('rei_user');
-        window._bcSend && window._bcSend({ type: 'LOGOUT' });
+        localStorage.clear();
+        console.log('[LOGOUT] ✅ localStorage limpo');
+        
+        // ─────── 2️⃣ LIMPAR SESSIONSTORAGE ───────
+        sessionStorage.clear();
+        console.log('[LOGOUT] ✅ sessionStorage limpo');
+        
+        // ─────── 3️⃣ LIMPAR INDEXEDDB (databases do PWA) ───────
+        if (window.indexedDB) {
+            try {
+                const dbs = await window.indexedDB.databases?.() || [];
+                for (const db of dbs) {
+                    window.indexedDB.deleteDatabase(db.name);
+                    console.log(`[LOGOUT] ✅ IndexedDB "${db.name}" deletado`);
+                }
+            } catch (e) {
+                console.warn('[LOGOUT] ⚠️ Erro ao limpar IndexedDB:', e.message);
+            }
+        }
+        
+        // ─────── 4️⃣ UNSUBSCRIBE DE WEB PUSH ───────
+        if ('serviceWorker' in navigator) {
+            try {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (const reg of regs) {
+                    const sub = await reg.pushManager.getSubscription();
+                    if (sub) {
+                        await sub.unsubscribe();
+                        console.log('[LOGOUT] ✅ Web Push subscription removida');
+                    }
+                }
+            } catch (e) {
+                console.warn('[LOGOUT] ⚠️ Erro ao unsubscribe push:', e.message);
+            }
+        }
+        
+        // ─────── 5️⃣ LIMPAR CACHE DO SERVICE WORKER ───────
+        if ('caches' in window) {
+            try {
+                const nomes = await caches.keys();
+                for (const nome of nomes) {
+                    await caches.delete(nome);
+                    console.log(`[LOGOUT] ✅ Cache "${nome}" deletado`);
+                }
+            } catch (e) {
+                console.warn('[LOGOUT] ⚠️ Erro ao limpar cache:', e.message);
+            }
+        }
+        
+        // ─────── 6️⃣ LIMPAR VARIAVEIS EM MEMÓRIA ───────
         cart = {};
         user = null;
+        console.log('[LOGOUT] ✅ Variáveis em memória limpas');
+        
+        // ─────── 7️⃣ NOTIFICAR OUTRAS ABAS ───────
+        window._bcSend && window._bcSend({ type: 'LOGOUT' });
+        
+        // ─────── 8️⃣ VOLTAR PARA LOGIN ───────
         document.getElementById('app').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
         document.getElementById('userPhone').value = '';
         document.getElementById('userName').value = '';
         document.getElementById('nameBox').style.display = 'none';
+        
+        console.log('[LOGOUT] 🎉 Logout completo! PWA resetado.');
+        
+        // ─────── 9️⃣ INFORMAR SOBRE PERMISSÃO DE NOTIFICAÇÃO ───────
+        // Nota: Notification.permission NÃO pode ser alterado via JS (limitação de segurança do navegador)
+        if (Notification.permission === 'granted') {
+            console.warn('[LOGOUT] ⚠️ PERMISSÃO DE NOTIFICAÇÃO: ainda está ativa');
+            console.warn('[LOGOUT] 📌 Para resetar, o usuário deve ir em:');
+            console.warn('[LOGOUT]    Chrome/Edge: ⚙️ Configurações → Privacidade → Notificações → remover site');
+            console.warn('[LOGOUT]    Firefox: 🦊 about:preferences#privacy → Permissões → Notificações → remover site');
+            console.warn('[LOGOUT]    Safari: 🧭 Configurações do site → Notificações → Negar');
+            
+            // Mostrar toast visual pro usuário
+            if (typeof showToast === 'function') {
+                showToast({
+                    type: 'info',
+                    title: '📌 Permissão de Notificação',
+                    body: 'Para resetar notificações, acesse as configurações de permissões do navegador.',
+                    duration: 6000
+                });
+            }
+        }
     }, 350);
 }
 
