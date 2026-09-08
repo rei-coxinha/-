@@ -1753,8 +1753,15 @@ async function auth() {
     // ✅ POPUP DE OFERTA — aparece todo login, baseado no created_at do Supabase
     mostrarPopupOferta(client, clienteNovo);
 
-    // ✅ REGISTRAR PUSH NATIVO DO CLIENTE
-    registrarPushCliente(phone);
+    // ✅ REGISTRAR PUSH NATIVO DO CLIENTE (com log de sucesso)
+    setTimeout(async () => {
+        const pushOk = await registrarPushCliente(phone);
+        if (pushOk) {
+            console.log('[Login] 🎉 Push registrado com sucesso!');
+        } else {
+            console.warn('[Login] ⚠️ Push não foi registrado — notificações podem não funcionar');
+        }
+    }, 500);
 }
 
 function mostrarPopupOferta(client, clienteNovo) {
@@ -1898,11 +1905,29 @@ async function confirmarLogout() {
     setTimeout(async () => {
         console.log('[LOGOUT] 🚪 Iniciando limpeza completa...');
         
-        // ─────── 1️⃣ LIMPAR LOCALSTORAGE ───────
+        // ─────── 0️⃣ LIMPAR REGISTROS ANTIGOS DO BANCO (antes de tudo) ───────
+        const deviceIdPush = localStorage.getItem('rei_coxinha_push_device_id');
+        if (deviceIdPush) {
+            try {
+                await sb.from('web_push_subscriptions').delete().eq('device_id', deviceIdPush);
+                console.log('[LOGOUT] ✅ Registros antigos de Web Push deletados do banco');
+            } catch (e) {
+                console.warn('[LOGOUT] ⚠️ Erro ao limpar banco:', e.message);
+            }
+        }
+        
+        console.log('[LOGOUT] 🚪 Iniciando limpeza completa...');
+        
+        // ─────── 1️⃣ LIMPAR LOCALSTORAGE (mas preservar device ID) ───────
+        const deviceIdPush = localStorage.getItem('rei_coxinha_push_device_id');
         localStorage.removeItem('rei_phone');
         localStorage.removeItem('rei_user');
-        localStorage.clear();
-        console.log('[LOGOUT] ✅ localStorage limpo');
+        // ⚠️ NÃO fazer localStorage.clear() — isso deleta device_id_push
+        // Restaurar device_id se foi deletado
+        if (deviceIdPush) {
+            localStorage.setItem('rei_coxinha_push_device_id', deviceIdPush);
+        }
+        console.log('[LOGOUT] ✅ localStorage limpo (preservando device ID)');
         
         // ─────── 2️⃣ LIMPAR SESSIONSTORAGE ───────
         sessionStorage.clear();
@@ -1921,19 +1946,28 @@ async function confirmarLogout() {
             }
         }
         
-        // ─────── 4️⃣ UNSUBSCRIBE DE WEB PUSH ───────
+        // ─────── 4️⃣ UNSUBSCRIBE DE WEB PUSH + DESREGISTRAR SERVICE WORKERS ───────
         if ('serviceWorker' in navigator) {
             try {
                 const regs = await navigator.serviceWorker.getRegistrations();
                 for (const reg of regs) {
+                    // Remove a subscription
                     const sub = await reg.pushManager.getSubscription();
                     if (sub) {
                         await sub.unsubscribe();
                         console.log('[LOGOUT] ✅ Web Push subscription removida');
                     }
+                    // Desregistra o Service Worker pra forçar novo registro no próximo login
+                    await reg.unregister();
+                    console.log(`[LOGOUT] ✅ Service Worker desregistrado: ${reg.scope}`);
+                }
+                // Limpa o controller pra garantir que não tá usando SW antigo
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+                    console.log('[LOGOUT] ✅ Enviado SKIP_WAITING pro SW');
                 }
             } catch (e) {
-                console.warn('[LOGOUT] ⚠️ Erro ao unsubscribe push:', e.message);
+                console.warn('[LOGOUT] ⚠️ Erro ao desregistrar SW/push:', e.message);
             }
         }
         
