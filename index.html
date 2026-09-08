@@ -92,7 +92,7 @@
 
 <script>
 (function(){
-    var APP           = './cardápio.html';
+    var APP           = './cardapio.html';
     var status        = document.getElementById('splashStatus');
     var btnClear      = document.getElementById('btnClear');
 
@@ -132,7 +132,7 @@
     var loginRota = obterLoginEspecialDaRota();
     if(loginRota){
         status.textContent = 'Entrando...';
-        redirecionar('./cardápio.html?auto=' + encodeURIComponent(loginRota.telefone + '=' + loginRota.nome));
+        redirecionar('./cardapio.html?auto=' + encodeURIComponent(loginRota.telefone + '=' + loginRota.nome));
         return;
     }
 

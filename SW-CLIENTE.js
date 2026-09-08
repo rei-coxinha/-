@@ -16,7 +16,7 @@ const FOTO_ORIGINS = [
 ];
 
 // Assets do próprio site que vale cachear (cache first, raramente mudam)
-// ⚠️ cardápio.html removido do precache — sempre busca da rede para pegar atualizações
+// ⚠️ cardapio.html removido do precache — sempre busca da rede para pegar atualizações
 const ASSETS_PRECACHE = [
   '/icone.png',
   '/manifest.json',
@@ -229,7 +229,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     let titulo = 'O Rei da Coxinha';
     let mensagem = 'Você tem uma nova notificação.';
-    let url = '/';
+    let url = 'https://rei-coxinha.github.io/-/cardapio.html';
     let notificationId = null;
 
     if (event.data) {
@@ -292,7 +292,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const alvoUrl = event.notification.data?.url || '/';
+  const alvoUrl = event.notification.data?.url || 'https://rei-coxinha.github.io/-/cardapio.html';
 
   event.waitUntil(
     self.clients
