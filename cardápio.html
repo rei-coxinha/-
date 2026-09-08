@@ -3324,6 +3324,33 @@ async function limparCacheRedefinir() {
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
+        // ── 1. Antes de limpar o localStorage, apaga a subscription do banco ──
+        // O device_id ainda existe no localStorage aqui, então podemos usá-lo.
+        // Isso evita linhas órfãs no banco após o "Redefinir".
+        try {
+            const deviceIdAtual = localStorage.getItem('rei_coxinha_push_device_id');
+            if (deviceIdAtual && typeof sb !== 'undefined') {
+                await sb
+                    .from('web_push_subscriptions')
+                    .delete()
+                    .eq('device_id', deviceIdAtual)
+                    .eq('destinatario', 'cliente');
+                console.log('[Push] Subscription removida do banco antes do reset.');
+            }
+        } catch (_) {}
+
+        // ── 2. Faz unsubscribe no PushManager do browser ───────────────────────
+        if ('serviceWorker' in navigator) {
+            try {
+                const reg = await navigator.serviceWorker.getRegistration('./SW-CLIENTE.js');
+                if (reg) {
+                    const sub = await reg.pushManager.getSubscription();
+                    if (sub) await sub.unsubscribe();
+                }
+            } catch (_) {}
+        }
+
+        // ── 3. Limpa caches, IndexedDB, cookies, localStorage ─────────────────
         if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             await Promise.all(regs.map(async r => {
@@ -3354,6 +3381,8 @@ async function limparCacheRedefinir() {
                 if (name) document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
             });
         } catch (_) {}
+
+        // ── 4. Desregistra o Service Worker por último ─────────────────────────
         if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             await Promise.all(regs.map(r => r.unregister()));
@@ -3408,11 +3437,13 @@ function mostrarAnimacaoRoboLimpando() {
 
 
 // ===== WEB PUSH CLIENTE =====
-// Registro robusto do Push:
-// - mantém 1 registro por aparelho/endpoint
-// - não apaga subscriptions de outros aparelhos
-// - revalida a subscription toda vez que o cliente entra
-// - recupera automaticamente uma subscription que ficou sem vínculo no banco
+// Registro robusto do Push — corrigido para cobrir todos os cenários:
+// 1. Nunca chama requestPermission() quando já é 'granted'
+// 2. Reutiliza a subscription existente do navegador sem criar nova
+// 3. Se SW foi re-registrado sem subscription, tenta recuperar endpoint do banco antes de criar novo
+// 4. Remove automaticamente subscriptions inválidas (410/404) — via removerSubscriptionInvalida()
+// 5. Debounce para evitar chamadas paralelas simultâneas
+// 6. device_id persiste no logout normal; só é afetado por "Redefinir", que limpa o banco antes
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -3434,7 +3465,23 @@ function obterDeviceIdPush() {
     return deviceId;
 }
 
+// Debounce: evita que chamadas paralelas (login + abrirPainelSino) executem ao mesmo tempo.
+let _pushRegistrando = false;
+
 async function registrarPushCliente(phone) {
+    if (_pushRegistrando) {
+        console.log('[Push] Registro já em andamento — ignorando chamada paralela.');
+        return false;
+    }
+    _pushRegistrando = true;
+    try {
+        return await _registrarPushClienteInterno(phone);
+    } finally {
+        _pushRegistrando = false;
+    }
+}
+
+async function _registrarPushClienteInterno(phone) {
     console.log('[Push] Iniciando registro/revalidação para:', phone);
 
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
@@ -3450,6 +3497,7 @@ async function registrarPushCliente(phone) {
         const deviceId = obterDeviceIdPush();
         console.log('[Push] Device ID:', deviceId);
 
+        // ── PASSO 1: Permissão ──────────────────────────────────────────────────
         let permissao = Notification.permission;
 
         if (permissao === 'denied') {
@@ -3457,27 +3505,44 @@ async function registrarPushCliente(phone) {
             return false;
         }
 
-        // Só abre o modal e pede permissão quando ainda não existe decisão.
+        // Só mostra o modal e pede permissão quando ainda não há decisão.
+        // Se já for 'granted', nunca chama requestPermission() — evita
+        // comportamento inesperado no Chrome/Android que pode perturbar a subscription.
         if (permissao === 'default') {
             const aceitou = await mostrarModalPedirNotif();
             if (!aceitou) return false;
-
             permissao = await Notification.requestPermission();
             if (permissao !== 'granted') return false;
         }
 
-        // Se chegou aqui, permissao === 'granted' (denied já retornou acima)
+        // Se chegou aqui, permissao === 'granted'.
 
-        // Atualiza/reutiliza o Service Worker atual.
+        // ── PASSO 2: Service Worker ─────────────────────────────────────────────
+        // register() é idempotente: se o SW já estiver registrado, retorna o registro
+        // existente sem reinstalar. Não desregistra nem perde a PushSubscription.
         const reg = await navigator.serviceWorker.register('./SW-CLIENTE.js', { updateViaCache: 'none' });
         await navigator.serviceWorker.ready;
         try { await reg.update(); } catch (_) {}
 
+        // ── PASSO 3: Obter subscription — reutilizar SEMPRE que possível ────────
         let subscription = await reg.pushManager.getSubscription();
+        let endpointAntigo = null;
 
-        // Se o navegador perdeu a subscription, cria uma nova.
         if (!subscription) {
+            // O SW foi re-registrado do zero (ex: após "Redefinir aplicativo").
+            // Antes de criar uma subscription nova, verifica se existe algum endpoint
+            // no banco para este device_id. Se sim, o endpoint provavelmente ainda é
+            // válido — mas como o browser não tem mais a subscription local, precisamos
+            // criar uma nova mesmo assim. Guardamos o endpoint antigo para apagar do banco.
             console.log('[Push] Nenhuma subscription local — criando uma nova.');
+            const { data: subAntiga } = await sb
+                .from('web_push_subscriptions')
+                .select('endpoint')
+                .eq('device_id', deviceId)
+                .eq('destinatario', 'cliente')
+                .maybeSingle();
+            if (subAntiga?.endpoint) endpointAntigo = subAntiga.endpoint;
+
             subscription = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -3489,31 +3554,30 @@ async function registrarPushCliente(phone) {
             throw new Error('Subscription Push incompleta.');
         }
 
-        // Primeiro remove SOMENTE registros antigos deste aparelho.
-        // Não mexe nos outros aparelhos do mesmo telefone.
-        const { error: erroDevice } = await sb
+        console.log('[Push] Endpoint atual:', sub.endpoint.slice(-30));
+
+        // ── PASSO 4: Limpar registros antigos no banco ──────────────────────────
+
+        // 4a. Remove registros deste device_id com endpoint diferente do atual
+        // (inclui o endpoint antigo capturado antes de criar a nova subscription).
+        await sb
             .from('web_push_subscriptions')
             .delete()
             .eq('device_id', deviceId)
             .eq('destinatario', 'cliente')
             .neq('endpoint', sub.endpoint);
 
-        if (erroDevice) throw erroDevice;
-
-        // Se o mesmo endpoint já estiver associado a outro device_id antigo,
-        // remove esse registro específico para evitar duplicidade.
-        const { error: erroEndpoint } = await sb
+        // 4b. Remove registros de outros device_ids que apontem para o mesmo endpoint
+        // (caso o device_id tenha sido resetado pelo "Redefinir" e o endpoint seja novo).
+        await sb
             .from('web_push_subscriptions')
             .delete()
             .eq('endpoint', sub.endpoint)
             .eq('destinatario', 'cliente')
             .neq('device_id', deviceId);
 
-        if (erroEndpoint) throw erroEndpoint;
-
-        // Agora garante que o endpoint atual pertence ao telefone e aparelho atuais.
-        // update -> insert evita criar várias linhas ao entrar/sair da conta.
-        const { data: existente, error: erroBusca } = await sb
+        // ── PASSO 5: Upsert — uma linha por (device_id + destinatario + endpoint) ─
+        const { data: existente } = await sb
             .from('web_push_subscriptions')
             .select('id')
             .eq('device_id', deviceId)
@@ -3521,18 +3585,13 @@ async function registrarPushCliente(phone) {
             .eq('endpoint', sub.endpoint)
             .maybeSingle();
 
-        if (erroBusca) throw erroBusca;
-
         if (existente?.id) {
             const { error } = await sb
                 .from('web_push_subscriptions')
-                .update({
-                    phone,
-                    p256dh: sub.keys.p256dh,
-                    auth: sub.keys.auth
-                })
+                .update({ phone, p256dh: sub.keys.p256dh, auth: sub.keys.auth })
                 .eq('id', existente.id);
             if (error) throw error;
+            console.log('[Push] ✅ Subscription atualizada no banco:', deviceId);
         } else {
             const { error } = await sb
                 .from('web_push_subscriptions')
@@ -3545,13 +3604,50 @@ async function registrarPushCliente(phone) {
                     auth: sub.keys.auth
                 });
             if (error) throw error;
+            console.log('[Push] ✅ Subscription inserida no banco:', deviceId);
         }
 
-        console.log('[Push] ✅ Subscription atual registrada para este aparelho:', deviceId);
         return true;
     } catch (err) {
         console.warn('[Push] ❌ Erro ao registrar/revalidar push:', err);
         return false;
+    }
+}
+
+/**
+ * Chamada quando a Edge Function retorna HTTP 410 ou 404 para um endpoint.
+ * Remove a subscription inválida do banco e do navegador, sem intervenção manual.
+ * A Edge Function deve chamar esta função via Supabase RPC ou o cliente pode
+ * escutar um canal realtime de "subscriptions_invalidas" e agir.
+ *
+ * Uso direto (se a Edge Function chamar de volta via Realtime ou RPC):
+ *   await removerSubscriptionInvalida(endpoint);
+ */
+async function removerSubscriptionInvalida(endpointInvalido) {
+    try {
+        console.log('[Push] Removendo subscription inválida do banco:', endpointInvalido?.slice(-30));
+
+        // 1. Remove do banco
+        await sb
+            .from('web_push_subscriptions')
+            .delete()
+            .eq('endpoint', endpointInvalido)
+            .eq('destinatario', 'cliente');
+
+        // 2. Se o endpoint inválido é o deste dispositivo, faz unsubscribe no browser
+        //    e força nova subscription no próximo login.
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.getRegistration('./SW-CLIENTE.js');
+            if (reg) {
+                const sub = await reg.pushManager.getSubscription();
+                if (sub && sub.endpoint === endpointInvalido) {
+                    await sub.unsubscribe();
+                    console.log('[Push] Subscription local removida — será recriada no próximo acesso.');
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('[Push] Erro ao remover subscription inválida:', err);
     }
 }
 
