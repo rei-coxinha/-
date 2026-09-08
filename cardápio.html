@@ -3319,24 +3319,56 @@ function carregarTemaSalvo() {
 async function limparCacheRedefinir() {
     // Mostrar animação do robozinho limpando PRIMEIRO
     mostrarAnimacaoRoboLimpando();
-
-    // Dar tempo para a animação iniciar
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
-        if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map(async r => {
-                try {
-                    if (r.active) r.active.postMessage({ type: 'CLEAR_ALL' });
-                    else if (r.waiting) r.waiting.postMessage({ type: 'CLEAR_ALL' });
-                } catch (_) {}
-            }));
+        // Antes de apagar localStorage/device_id, remove do banco a subscription
+        // deste aparelho. Isso evita deixar um registro órfão quando o app for resetado.
+        try {
+            const deviceIdAtual = localStorage.getItem('rei_coxinha_push_device_id');
+
+            if (deviceIdAtual && typeof sb !== 'undefined') {
+                const { error } = await sb
+                    .from('web_push_subscriptions')
+                    .delete()
+                    .eq('device_id', deviceIdAtual)
+                    .eq('destinatario', 'cliente');
+
+                if (error) {
+                    console.warn('[Push] Não foi possível limpar o registro do aparelho antes do reset:', error);
+                } else {
+                    console.log('[Push] Registro(s) do aparelho removido(s) antes do reset.');
+                }
+            }
+        } catch (e) {
+            console.warn('[Push] Limpeza remota antes do reset falhou; continuando reset local:', e);
         }
+
+        // Cancela a PushSubscription local antes de remover o Service Worker.
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            try {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(regs.map(async r => {
+                    try {
+                        const sub = r.pushManager ? await r.pushManager.getSubscription() : null;
+                        if (sub) await sub.unsubscribe();
+                    } catch (_) {}
+                }));
+
+                await Promise.all(regs.map(async r => {
+                    try {
+                        if (r.active) r.active.postMessage({ type: 'CLEAR_ALL' });
+                        else if (r.waiting) r.waiting.postMessage({ type: 'CLEAR_ALL' });
+                    } catch (_) {}
+                }));
+            } catch (_) {}
+        }
+
         if ('caches' in window) {
             const keys = await caches.keys();
             await Promise.all(keys.map(k => caches.delete(k)));
         }
+
         if ('indexedDB' in window) {
             await new Promise(resolve => {
                 try {
@@ -3345,11 +3377,10 @@ async function limparCacheRedefinir() {
                 } catch (_) { resolve(); }
             });
         }
-        // O registro antigo do Push será limpo automaticamente pela Edge Function
-        // quando o endpoint antigo retornar 404/410. Não tentamos apagar a tabela
-        // diretamente pelo cliente (isso depende das permissões/RLS do projeto).
+
         localStorage.clear();
         sessionStorage.clear();
+
         try {
             document.cookie.split(';').forEach(c => {
                 const eq = c.indexOf('=');
@@ -3357,15 +3388,16 @@ async function limparCacheRedefinir() {
                 if (name) document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
             });
         } catch (_) {}
+
         if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             await Promise.all(regs.map(r => r.unregister()));
         }
 
-        // Aguarda a animação terminar antes de recarregar
-        setTimeout(() => window.location.reload(true), 2800);
+        setTimeout(() => window.location.reload(), 2800);
     } catch (e) {
-        setTimeout(() => window.location.reload(true), 2800);
+        console.error('[RESET] Erro ao redefinir aplicativo:', e);
+        setTimeout(() => window.location.reload(), 2800);
     }
 }
 
@@ -3398,7 +3430,6 @@ function mostrarAnimacaoRoboLimpando() {
     document.body.appendChild(overlay);
     console.log('✅ Animação iniciada');
 
-    // Fechar após 2.5s
     setTimeout(() => {
         overlay.style.opacity = '0';
         overlay.style.transition = 'opacity 0.5s ease-out';
@@ -3411,11 +3442,6 @@ function mostrarAnimacaoRoboLimpando() {
 
 
 // ===== WEB PUSH CLIENTE =====
-// Registro robusto do Push:
-// - mantém 1 registro por aparelho/endpoint
-// - não apaga subscriptions de outros aparelhos
-// - revalida a subscription toda vez que o cliente entra
-// - recupera automaticamente uma subscription que ficou sem vínculo no banco
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -3437,125 +3463,145 @@ function obterDeviceIdPush() {
     return deviceId;
 }
 
-let _pushRegistroEmAndamento = null;
+// Impede duas chamadas simultâneas (login + abertura do sino, por exemplo)
+let _pushRegistrando = null;
 
 async function registrarPushCliente(phone) {
-    // Evita duas revalidações simultâneas (login + painel do sino, por exemplo).
-    if (_pushRegistroEmAndamento) return _pushRegistroEmAndamento;
+    if (_pushRegistrando) return _pushRegistrando;
 
-    _pushRegistroEmAndamento = (async () => {
-    console.log('[Push] Iniciando registro/revalidação para:', phone);
+    _pushRegistrando = (async () => {
+        console.log('[Push] Iniciando registro/revalidação para:', phone);
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-        console.warn('[Push] Push não suportado neste navegador.');
-        return false;
-    }
-    if (!phone) {
-        console.warn('[Push] Phone não informado — abortando.');
-        return false;
-    }
-
-    try {
-        const deviceId = obterDeviceIdPush();
-        console.log('[Push] Device ID:', deviceId);
-
-        let permissao = Notification.permission;
-
-        if (permissao === 'denied') {
-            mostrarModalNotifBloqueada();
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+            console.warn('[Push] Push não suportado neste navegador.');
             return false;
         }
 
-        // Só solicita permissão quando o navegador ainda não recebeu uma decisão.
-        // Se já estiver 'granted', NÃO chama requestPermission() novamente.
-        if (permissao === 'default') {
-            const aceitou = await mostrarModalPedirNotif();
-            if (!aceitou) return false;
+        if (!phone) {
+            console.warn('[Push] Phone não informado — abortando.');
+            return false;
+        }
 
-            permissao = await Notification.requestPermission();
+        try {
+            const deviceId = obterDeviceIdPush();
+            console.log('[Push] Device ID:', deviceId);
+
+            // NUNCA chama requestPermission() se já estiver concedido.
+            let permissao = Notification.permission;
+
+            if (permissao === 'denied') {
+                mostrarModalNotifBloqueada();
+                return false;
+            }
+
+            if (permissao === 'default') {
+                const aceitou = await mostrarModalPedirNotif();
+                if (!aceitou) return false;
+
+                // Só solicita a permissão nativa depois da confirmação do usuário.
+                permissao = await Notification.requestPermission();
+                if (permissao !== 'granted') return false;
+            }
+
+            // Se já estava granted, segue diretamente sem chamar requestPermission().
             if (permissao !== 'granted') return false;
-        }
 
-        // Se chegou aqui, a permissão precisa estar concedida.
-        if (permissao !== 'granted') return false;
-
-        // Atualiza/reutiliza o Service Worker atual.
-        const reg = await navigator.serviceWorker.register('./SW-CLIENTE.js', { updateViaCache: 'none' });
-        await navigator.serviceWorker.ready;
-        try { await reg.update(); } catch (_) {}
-
-        let subscription = await reg.pushManager.getSubscription();
-
-        // Se o navegador perdeu a subscription, cria uma nova.
-        if (!subscription) {
-            console.log('[Push] Nenhuma subscription local — criando uma nova.');
-            subscription = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            const reg = await navigator.serviceWorker.register('./SW-CLIENTE.js', {
+                updateViaCache: 'none'
             });
-        }
+            await navigator.serviceWorker.ready;
+            try { await reg.update(); } catch (_) {}
 
-        const sub = subscription.toJSON();
-        if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
-            throw new Error('Subscription Push incompleta.');
-        }
+            // Reutiliza a subscription existente sempre que o navegador ainda a possuir.
+            let subscription = await reg.pushManager.getSubscription();
 
-        // Não fazemos DELETE diretamente pelo cliente. O cliente usa a chave anon
-        // e a limpeza de subscriptions inválidas fica a cargo da Edge Function
-        // com service role quando o endpoint retornar 404/410.
-        // Assim, falta de permissão no PostgREST não impede o registro atual.
+            if (!subscription) {
+                console.log('[Push] Nenhuma subscription local — criando uma nova.');
+                subscription = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                });
+            }
 
-        // Reutiliza o registro mais recente deste aparelho, se existir.
-        const { data: registrosDevice, error: erroBusca } = await sb
-            .from('web_push_subscriptions')
-            .select('id')
-            .eq('device_id', deviceId)
-            .eq('destinatario', 'cliente')
-            .order('created_at', { ascending: false })
-            .limit(1);
+            const sub = subscription.toJSON();
+            if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
+                throw new Error('Subscription Push incompleta.');
+            }
 
-        if (erroBusca) throw erroBusca;
-
-        const registroAtual = registrosDevice?.[0];
-
-        if (registroAtual?.id) {
-            const { error } = await sb
+            // Remove somente registros antigos deste mesmo aparelho.
+            const { error: deleteDeviceError } = await sb
                 .from('web_push_subscriptions')
-                .update({
-                    phone,
-                    endpoint: sub.endpoint,
-                    p256dh: sub.keys.p256dh,
-                    auth: sub.keys.auth,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', registroAtual.id);
-            if (error) throw error;
-        } else {
-            const { error } = await sb
+                .delete()
+                .eq('device_id', deviceId)
+                .eq('destinatario', 'cliente')
+                .neq('endpoint', sub.endpoint);
+
+            if (deleteDeviceError) throw deleteDeviceError;
+
+            // Um endpoint só pode representar o aparelho atual.
+            // Se ficou registrado em outro device_id, remove o registro antigo.
+            const { error: deleteEndpointError } = await sb
+                .from('web_push_subscriptions')
+                .delete()
+                .eq('endpoint', sub.endpoint)
+                .eq('destinatario', 'cliente')
+                .neq('device_id', deviceId);
+
+            if (deleteEndpointError) throw deleteEndpointError;
+
+            // Procura o registro atual antes de inserir para não criar duplicata.
+            const { data: existente, error: buscaError } = await sb
+                .from('web_push_subscriptions')
+                .select('id')
+                .eq('device_id', deviceId)
+                .eq('destinatario', 'cliente')
+                .eq('endpoint', sub.endpoint)
+                .maybeSingle();
+
+            if (buscaError) throw buscaError;
+
+            if (existente?.id) {
+                const { error: updateError } = await sb
+                    .from('web_push_subscriptions')
+                    .update({
+                        phone: String(phone),
+                        p256dh: sub.keys.p256dh,
+                        auth: sub.keys.auth,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', existente.id);
+
+                if (updateError) throw updateError;
+
+                console.log('[Push] ✅ Subscription já existente — apenas atualizada.');
+                return true;
+            }
+
+            const { error: pushError } = await sb
                 .from('web_push_subscriptions')
                 .insert({
-                    phone,
+                    phone: String(phone),
                     device_id: deviceId,
                     destinatario: 'cliente',
                     endpoint: sub.endpoint,
                     p256dh: sub.keys.p256dh,
                     auth: sub.keys.auth
                 });
-            if (error) throw error;
-        }
 
-        console.log('[Push] ✅ Subscription atual registrada para este aparelho:', deviceId);
-        return true;
-    } catch (err) {
-        console.warn('[Push] ❌ Erro ao registrar/revalidar push:', err);
-        return false;
-    }
+            if (pushError) throw pushError;
+
+            console.log('[Push] ✅ Subscription salva sem duplicidade.');
+            return true;
+        } catch (err) {
+            console.warn('[Push] ❌ Erro ao registrar push do cliente:', err);
+            return false;
+        }
     })();
 
     try {
-        return await _pushRegistroEmAndamento;
+        return await _pushRegistrando;
     } finally {
-        _pushRegistroEmAndamento = null;
+        _pushRegistrando = null;
     }
 }
 
