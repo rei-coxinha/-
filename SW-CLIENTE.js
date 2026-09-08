@@ -5,8 +5,8 @@
 
 // ─── Configuração de cache ────────────────────────────────────────────────────
 
-const CACHE_FOTOS   = 'rei-fotos-v1';      // imagens do GitHub (network first)
-const CACHE_ASSETS  = 'rei-assets-v1';     // shell estático (cache first)
+const CACHE_FOTOS   = 'rei-fotos-v2';      // imagens do GitHub (network first)
+const CACHE_ASSETS  = 'rei-assets-v2';     // shell estático (cache first)
 
 // Domínios cujas imagens usam Network First
 const FOTO_ORIGINS = [
@@ -16,9 +16,8 @@ const FOTO_ORIGINS = [
 ];
 
 // Assets do próprio site que vale cachear (cache first, raramente mudam)
+// ⚠️ cardápio.html removido do precache — sempre busca da rede para pegar atualizações
 const ASSETS_PRECACHE = [
-  '/',
-  '/cardápio.html',
   '/icone.png',
   '/manifest.json',
 ];
