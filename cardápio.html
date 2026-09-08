@@ -1565,6 +1565,8 @@ window.onload = async () => {
                     // Inicia escuta em tempo real para tickets e debt
                     iniciarRealtimeCliente(savedPhone);
                     iniciarAtualizacaoPeriodicaSaldo();
+                    // Revalidar Push também no login automático após fechar/reabrir o PWA.
+                    registrarPushCliente(savedPhone);
                     // Atualizar contador de notificações
                     setTimeout(() => renderHistoricoSaldo(), 500);
                     return;
@@ -3406,6 +3408,11 @@ function mostrarAnimacaoRoboLimpando() {
 
 
 // ===== WEB PUSH CLIENTE =====
+// Registro robusto do Push:
+// - mantém 1 registro por aparelho/endpoint
+// - não apaga subscriptions de outros aparelhos
+// - revalida a subscription toda vez que o cliente entra
+// - recupera automaticamente uma subscription que ficou sem vínculo no banco
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -3417,7 +3424,7 @@ function obterDeviceIdPush() {
     const CHAVE = 'rei_coxinha_push_device_id';
     let deviceId = localStorage.getItem(CHAVE);
     if (!deviceId) {
-        if (crypto && crypto.randomUUID) {
+        if (window.crypto && crypto.randomUUID) {
             deviceId = crypto.randomUUID();
         } else {
             deviceId = 'device-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
@@ -3428,89 +3435,48 @@ function obterDeviceIdPush() {
 }
 
 async function registrarPushCliente(phone) {
-    console.log('[Push] Iniciando registro para:', phone);
+    console.log('[Push] Iniciando registro/revalidação para:', phone);
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
         console.warn('[Push] Push não suportado neste navegador.');
-        return;
+        return false;
     }
     if (!phone) {
         console.warn('[Push] Phone não informado — abortando.');
-        return;
-    }
-
-    const deviceId = obterDeviceIdPush();
-    console.log('[Push] Device ID:', deviceId);
-
-    // Verifica permissão atual antes de pedir
-    const permissaoAtual = Notification.permission;
-
-    if (permissaoAtual === 'denied') {
-        // Bloqueado pelo usuário: mostra instrução para desbloquear nas configurações
-        mostrarModalNotifBloqueada();
-        return;
-    }
-
-    if (permissaoAtual === 'default') {
-        // Ainda não decidiu (ou dispensou antes): mostra modal próprio explicando
-        const aceitou = await mostrarModalPedirNotif();
-        if (!aceitou) return;
+        return false;
     }
 
     try {
-        const reg = await navigator.serviceWorker.register('./SW-CLIENTE.js');
-        await navigator.serviceWorker.ready;
+        const deviceId = obterDeviceIdPush();
+        console.log('[Push] Device ID:', deviceId);
 
-        const permissao = await Notification.requestPermission();
-        if (permissao !== 'granted') return;
+        let permissao = Notification.permission;
+
+        if (permissao === 'denied') {
+            mostrarModalNotifBloqueada();
+            return false;
+        }
+
+        // Só abre o modal e pede permissão quando ainda não existe decisão.
+        if (permissao === 'default') {
+            const aceitou = await mostrarModalPedirNotif();
+            if (!aceitou) return false;
+
+            permissao = await Notification.requestPermission();
+            if (permissao !== 'granted') return false;
+        }
+
+        // Se chegou aqui, permissao === 'granted' (denied já retornou acima)
+
+        // Atualiza/reutiliza o Service Worker atual.
+        const reg = await navigator.serviceWorker.register('./SW-CLIENTE.js', { updateViaCache: 'none' });
+        await navigator.serviceWorker.ready;
+        try { await reg.update(); } catch (_) {}
 
         let subscription = await reg.pushManager.getSubscription();
 
-        // Se já existe uma subscription local, NÃO criamos outra.
-        // Primeiro limpamos possíveis duplicatas deste mesmo dispositivo no banco.
-        if (subscription) {
-            console.log('[Push] Subscription local:', subscription.endpoint);
-
-            const { data: registros, error: erroBusca } = await sb
-                .from('web_push_subscriptions')
-                .select('id, endpoint, device_id')
-                .eq('device_id', deviceId)
-                .eq('destinatario', 'cliente');
-
-            if (erroBusca) throw erroBusca;
-
-            const atual = (registros || []).find(r => r.endpoint === subscription.endpoint);
-
-            // Remove qualquer registro duplicado do MESMO aparelho, preservando o atual.
-            const idsParaApagar = (registros || [])
-                .filter(r => r.id !== (atual?.id))
-                .map(r => r.id)
-                .filter(Boolean);
-
-            if (idsParaApagar.length) {
-                const { error: erroLimpeza } = await sb
-                    .from('web_push_subscriptions')
-                    .delete()
-                    .in('id', idsParaApagar);
-                if (erroLimpeza) throw erroLimpeza;
-                console.log('[Push] Duplicatas antigas deste aparelho removidas:', idsParaApagar.length);
-            }
-
-            if (atual) {
-                // Garante que o telefone associado ao aparelho está atualizado.
-                const { error: erroAtualizacao } = await sb
-                    .from('web_push_subscriptions')
-                    .update({ phone })
-                    .eq('id', atual.id);
-                if (erroAtualizacao) throw erroAtualizacao;
-
-                console.log('[Push] ✅ Subscription atual já está registrada para este aparelho.');
-                return;
-            }
-
-            // Existe subscription local, mas ela não está registrada para este device_id.
-            // Vamos reaproveitar o endpoint atual e registrá-lo corretamente.
-        } else {
+        // Se o navegador perdeu a subscription, cria uma nova.
+        if (!subscription) {
             console.log('[Push] Nenhuma subscription local — criando uma nova.');
             subscription = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -3523,39 +3489,69 @@ async function registrarPushCliente(phone) {
             throw new Error('Subscription Push incompleta.');
         }
 
-        // Remove registros antigos deste aparelho antes de salvar a atual.
-        const { error: deleteDeviceError } = await sb
+        // Primeiro remove SOMENTE registros antigos deste aparelho.
+        // Não mexe nos outros aparelhos do mesmo telefone.
+        const { error: erroDevice } = await sb
             .from('web_push_subscriptions')
             .delete()
             .eq('device_id', deviceId)
-            .eq('destinatario', 'cliente');
+            .eq('destinatario', 'cliente')
+            .neq('endpoint', sub.endpoint);
 
-        if (deleteDeviceError) throw deleteDeviceError;
+        if (erroDevice) throw erroDevice;
 
-        // Remove também qualquer outro registro que tenha exatamente o mesmo endpoint.
-        // Isso impede que o mesmo navegador seja notificado duas vezes por registros duplicados.
-        const { error: deleteEndpointError } = await sb
+        // Se o mesmo endpoint já estiver associado a outro device_id antigo,
+        // remove esse registro específico para evitar duplicidade.
+        const { error: erroEndpoint } = await sb
             .from('web_push_subscriptions')
             .delete()
             .eq('endpoint', sub.endpoint)
-            .eq('destinatario', 'cliente');
+            .eq('destinatario', 'cliente')
+            .neq('device_id', deviceId);
 
-        if (deleteEndpointError) throw deleteEndpointError;
+        if (erroEndpoint) throw erroEndpoint;
 
-        const { error: pushError } = await sb.from('web_push_subscriptions').insert({
-            phone,
-            device_id: deviceId,
-            destinatario: 'cliente',
-            endpoint: sub.endpoint,
-            p256dh: sub.keys.p256dh,
-            auth: sub.keys.auth
-        });
+        // Agora garante que o endpoint atual pertence ao telefone e aparelho atuais.
+        // update -> insert evita criar várias linhas ao entrar/sair da conta.
+        const { data: existente, error: erroBusca } = await sb
+            .from('web_push_subscriptions')
+            .select('id')
+            .eq('device_id', deviceId)
+            .eq('destinatario', 'cliente')
+            .eq('endpoint', sub.endpoint)
+            .maybeSingle();
 
-        if (pushError) throw pushError;
+        if (erroBusca) throw erroBusca;
 
-        console.log('[Push] ✅ Subscription salva. 1 aparelho = 1 subscription.');
+        if (existente?.id) {
+            const { error } = await sb
+                .from('web_push_subscriptions')
+                .update({
+                    phone,
+                    p256dh: sub.keys.p256dh,
+                    auth: sub.keys.auth
+                })
+                .eq('id', existente.id);
+            if (error) throw error;
+        } else {
+            const { error } = await sb
+                .from('web_push_subscriptions')
+                .insert({
+                    phone,
+                    device_id: deviceId,
+                    destinatario: 'cliente',
+                    endpoint: sub.endpoint,
+                    p256dh: sub.keys.p256dh,
+                    auth: sub.keys.auth
+                });
+            if (error) throw error;
+        }
+
+        console.log('[Push] ✅ Subscription atual registrada para este aparelho:', deviceId);
+        return true;
     } catch (err) {
-        console.warn('[Push] ❌ Erro ao registrar push do cliente:', err);
+        console.warn('[Push] ❌ Erro ao registrar/revalidar push:', err);
+        return false;
     }
 }
 
