@@ -3635,45 +3635,6 @@ async function registrarPushCliente(phone) {
                 throw new Error('Subscription Push incompleta.');
             }
 
-            // 🔍 DETECTA TROCA DE DEVICE: Se este phone tá registrado em outro device
-            // Deleta subscription antiga pra não receber em celular que não tá usando mais
-            console.log('[Push] 🔍 Verificando se mudou de celular...');
-            const { data: subscricoesCelulares } = await sb
-                .from('web_push_subscriptions')
-                .select('device_id')
-                .eq('phone', String(phone))
-                .eq('destinatario', 'cliente')
-                .neq('device_id', deviceId);
-
-            if (subscricoesCelulares && subscricoesCelulares.length > 0) {
-                console.log(`[Push] ⚠️ MUDOU DE CELULAR! Encontrou ${subscricoesCelulares.length} subscription(ões) em outro(s) device(s)`);
-                
-                // Deleta as subscriptions antigas dos outros devices
-                const { error: deleteOutrosDevicesError } = await sb
-                    .from('web_push_subscriptions')
-                    .delete()
-                    .eq('phone', String(phone))
-                    .eq('destinatario', 'cliente')
-                    .neq('device_id', deviceId);
-                
-                if (deleteOutrosDevicesError) {
-                    console.warn('[Push] ⚠️ Erro ao deletar subscriptions dos outros celulares:', deleteOutrosDevicesError.message);
-                } else {
-                    console.log('[Push] ✅ Subscriptions dos outros celulares DELETADAS - só recebe neste agora!');
-                    // Aviso visual
-                    if (typeof showToast === 'function') {
-                        showToast({
-                            type: 'info',
-                            title: '📱 Novo Celular Detectado',
-                            body: 'Notificações ativadas apenas neste aparelho.',
-                            duration: 3000
-                        });
-                    }
-                }
-            } else {
-                console.log('[Push] ✓ Mesmo device ou primeira vez neste phone');
-            }
-
             // 🗑️ DELETA TODAS as antigas deste device
             const { error: deleteError } = await sb
                 .from('web_push_subscriptions')
