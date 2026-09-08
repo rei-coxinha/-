@@ -3345,6 +3345,9 @@ async function limparCacheRedefinir() {
                 } catch (_) { resolve(); }
             });
         }
+        // O registro antigo do Push será limpo automaticamente pela Edge Function
+        // quando o endpoint antigo retornar 404/410. Não tentamos apagar a tabela
+        // diretamente pelo cliente (isso depende das permissões/RLS do projeto).
         localStorage.clear();
         sessionStorage.clear();
         try {
@@ -3434,7 +3437,13 @@ function obterDeviceIdPush() {
     return deviceId;
 }
 
+let _pushRegistroEmAndamento = null;
+
 async function registrarPushCliente(phone) {
+    // Evita duas revalidações simultâneas (login + painel do sino, por exemplo).
+    if (_pushRegistroEmAndamento) return _pushRegistroEmAndamento;
+
+    _pushRegistroEmAndamento = (async () => {
     console.log('[Push] Iniciando registro/revalidação para:', phone);
 
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
@@ -3457,13 +3466,17 @@ async function registrarPushCliente(phone) {
             return false;
         }
 
-        // Só abre o modal próprio quando ainda não existe decisão.
+        // Só solicita permissão quando o navegador ainda não recebeu uma decisão.
+        // Se já estiver 'granted', NÃO chama requestPermission() novamente.
         if (permissao === 'default') {
             const aceitou = await mostrarModalPedirNotif();
             if (!aceitou) return false;
+
+            permissao = await Notification.requestPermission();
+            if (permissao !== 'granted') return false;
         }
 
-        permissao = await Notification.requestPermission();
+        // Se chegou aqui, a permissão precisa estar concedida.
         if (permissao !== 'granted') return false;
 
         // Atualiza/reutiliza o Service Worker atual.
@@ -3487,49 +3500,35 @@ async function registrarPushCliente(phone) {
             throw new Error('Subscription Push incompleta.');
         }
 
-        // Primeiro remove SOMENTE registros antigos deste aparelho.
-        // Não mexe nos outros aparelhos do mesmo telefone.
-        const { error: erroDevice } = await sb
-            .from('web_push_subscriptions')
-            .delete()
-            .eq('device_id', deviceId)
-            .eq('destinatario', 'cliente')
-            .neq('endpoint', sub.endpoint);
+        // Não fazemos DELETE diretamente pelo cliente. O cliente usa a chave anon
+        // e a limpeza de subscriptions inválidas fica a cargo da Edge Function
+        // com service role quando o endpoint retornar 404/410.
+        // Assim, falta de permissão no PostgREST não impede o registro atual.
 
-        if (erroDevice) throw erroDevice;
-
-        // Se o mesmo endpoint já estiver associado a outro device_id antigo,
-        // remove esse registro específico para evitar duplicidade.
-        const { error: erroEndpoint } = await sb
-            .from('web_push_subscriptions')
-            .delete()
-            .eq('endpoint', sub.endpoint)
-            .eq('destinatario', 'cliente')
-            .neq('device_id', deviceId);
-
-        if (erroEndpoint) throw erroEndpoint;
-
-        // Agora garante que o endpoint atual pertence ao telefone e aparelho atuais.
-        // update -> insert evita criar várias linhas ao entrar/sair da conta.
-        const { data: existente, error: erroBusca } = await sb
+        // Reutiliza o registro mais recente deste aparelho, se existir.
+        const { data: registrosDevice, error: erroBusca } = await sb
             .from('web_push_subscriptions')
             .select('id')
             .eq('device_id', deviceId)
             .eq('destinatario', 'cliente')
-            .eq('endpoint', sub.endpoint)
-            .maybeSingle();
+            .order('created_at', { ascending: false })
+            .limit(1);
 
         if (erroBusca) throw erroBusca;
 
-        if (existente?.id) {
+        const registroAtual = registrosDevice?.[0];
+
+        if (registroAtual?.id) {
             const { error } = await sb
                 .from('web_push_subscriptions')
                 .update({
                     phone,
+                    endpoint: sub.endpoint,
                     p256dh: sub.keys.p256dh,
-                    auth: sub.keys.auth
+                    auth: sub.keys.auth,
+                    updated_at: new Date().toISOString()
                 })
-                .eq('id', existente.id);
+                .eq('id', registroAtual.id);
             if (error) throw error;
         } else {
             const { error } = await sb
@@ -3550,6 +3549,13 @@ async function registrarPushCliente(phone) {
     } catch (err) {
         console.warn('[Push] ❌ Erro ao registrar/revalidar push:', err);
         return false;
+    }
+    })();
+
+    try {
+        return await _pushRegistroEmAndamento;
+    } finally {
+        _pushRegistroEmAndamento = null;
     }
 }
 
