@@ -1919,7 +1919,6 @@ async function confirmarLogout() {
         console.log('[LOGOUT] 🚪 Iniciando limpeza completa...');
         
         // ─────── 1️⃣ LIMPAR LOCALSTORAGE (mas preservar device ID) ───────
-        const deviceIdPush = localStorage.getItem('rei_coxinha_push_device_id');
         localStorage.removeItem('rei_phone');
         localStorage.removeItem('rei_user');
         // ⚠️ NÃO fazer localStorage.clear() — isso deleta device_id_push
