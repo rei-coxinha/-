@@ -1679,6 +1679,10 @@ window.onload = async () => {
         // Link especial: usa o MESMO auth() do login manual e o MESMO armazenamento.
         const loginEspecialInicial = obterLoginEspecial();
         if (loginEspecialInicial) {
+            // ⚠️ Corrige bug: esse ramo nunca cancelava o timeoutGlobal de 12s.
+            // Resultado: mesmo com o login dando certo, aos 12s a tela de
+            // "Sem conexão" aparecia por cima do app já carregado.
+            clearTimeout(timeoutGlobal);
             const phoneEspecial = normalizarTelefoneLogin(loginEspecialInicial.telefone);
             const campoPhone = document.getElementById('userPhone');
             const campoNome = document.getElementById('userName');
