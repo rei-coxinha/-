@@ -2633,13 +2633,13 @@ function roboEstado(estado) {
         if (b)   { b.style.width='100%'; }
         if (pct) pct.textContent = '100%';
         if (st)  st.textContent  = 'Pedido confirmado!';
-        if (food){ food.style.animation='none'; food.innerHTML='<span class="sv-result">✅</span>'; }
+        if (food){ food.style.animation='none'; food.innerHTML='<img src="/-/fotos/certo.png" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:32px;">'; }
         setTimeout(()=>{ window.location.href = './itens.html'; }, 1000);
     } else if (estado === 'nao') {
         // Muda emoji para ❌ antes de mostrar o card de erro
         const food= document.getElementById('svFood');
         eSalvando.style.display = 'block';
-        if (food){ food.style.animation='none'; food.innerHTML='<span class="sv-result">❌</span>'; }
+        if (food){ food.style.animation='none'; food.innerHTML='<img src="/-/fotos/erro.png" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:32px;">'; }
         setTimeout(()=>{
             eSalvando.style.display = 'none';
             eNao.style.display = 'block';
