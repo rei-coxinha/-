@@ -713,7 +713,7 @@
                     <div class="sv-glow"></div>
                     <div class="sv-ring"></div>
                     <div class="sv-ring2"></div>
-                    <div class="sv-food" id="svFood"><img src="/fotos/assistente.png" alt=""></div>
+                    <div class="sv-food" id="svFood"><img src="./fotos/assistente.png" alt=""></div>
                 </div>
                 <div class="sv-progress"><b id="confirmBarra"></b></div>
                 <div class="sv-status"><span id="confirmStatus">Enviando...</span><strong id="confirmPercent">0%</strong></div>
@@ -866,7 +866,7 @@ function confirmarEstado(estado) {
         const pct  = document.getElementById('confirmPercent');
         const st   = document.getElementById('confirmStatus');
         const food = document.getElementById('svFood');
-        if (food) food.innerHTML = '<img src="/fotos/assistente.png" alt="" style="width:80px;height:80px;object-fit:contain;border-radius:16px;">';
+        if (food) food.innerHTML = '<img src="./fotos/assistente.png" alt="" style="width:80px;height:80px;object-fit:contain;border-radius:16px;">';
         if (pct)  pct.textContent  = '0%';
         if (st)   st.textContent   = 'Enviando...';
         if (b) {
