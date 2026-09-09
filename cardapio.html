@@ -785,7 +785,7 @@
           box-shadow:inset 0 1px rgba(255,255,255,.1),0 18px 45px rgba(0,0,0,.45);
           animation:svFloat 2.6s ease-in-out infinite;
           overflow:hidden; }
-        .sv-food img { width:80px;height:80px;object-fit:contain;border-radius:16px; }
+        .sv-food img { width:100%;height:100%;object-fit:cover;border-radius:32px; }
         .sv-food .sv-result { font-size:52px;line-height:1; }
         .sv-food::after { content:"";position:absolute;inset:-8px;border-radius:38px;
           border:1px solid rgba(255,202,85,.12);pointer-events:none; }
@@ -2610,7 +2610,7 @@ function roboEstado(estado) {
         const pct = document.getElementById('salvanPercent');
         const st  = document.getElementById('salvanStatus');
         const food= document.getElementById('svFood');
-        if (food) food.innerHTML = '<img src="/-/fotos/assistente.png" alt="" style="width:80px;height:80px;object-fit:contain;border-radius:16px;">';
+        if (food) food.innerHTML = '<img src="/-/fotos/assistente.png" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:32px;">';
         if (pct)  pct.textContent  = '0%';
         if (st)   st.textContent   = 'Enviando...';
         if (b) {
