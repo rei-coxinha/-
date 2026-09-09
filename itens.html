@@ -806,6 +806,35 @@ let user = null;
 let _cancelarPedidoId = null;
 let _cancelarTotal = 0;
 
+// ===== NOTIFICAÇÕES PARA O ADM (mesmo formato oficial usado no adm.html) =====
+// Colunas da tabela notificacoes: id, phone, destinatario, titulo, mensagem, created_at, url.
+// destinatario = 'adm' → phone fica null. Dispara a dynamic-function para enviar o push.
+async function inserirNotificacao(destinatario, phone, titulo, mensagem, url = '/') {
+    const { data, error } = await sb.from('notificacoes').insert({
+        phone: phone || null,
+        destinatario,
+        titulo,
+        mensagem,
+        url
+    }).select('id').single();
+
+    if (error) {
+        console.error(`❌ [Notificação] ERRO (${destinatario} → ${phone}):`, error.message);
+        return null;
+    }
+
+    try {
+        const { error: fnError } = await sb.functions.invoke('dynamic-function', {
+            body: { notificacao_id: data.id }
+        });
+        if (fnError) console.error('❌ [Notificação] Erro ao chamar dynamic-function:', fnError.message);
+    } catch (e) {
+        console.error('❌ [Notificação] Exceção ao chamar dynamic-function:', e.message);
+    }
+
+    return data.id;
+}
+
 // Modo: 'historico' (sem URL params) ou 'expedidos' (qualquer param na URL)
 const MODO = window.location.search.length > 1 ? 'expedidos' : 'historico';
 
@@ -1375,6 +1404,15 @@ document.getElementById('btnConfirmarCancelar').onclick = async function() {
             descricao: descNotif
         });
 
+        // Notifica o ADM (Push): cancelamento — cabeçalho com nome + link direto pro Zap do cliente
+        inserirNotificacao(
+            'adm',
+            null,
+            `❌ ${pedido.customer_name || user.name}`,
+            'cancelou o pedido',
+            `https://wa.me/55${user.phone}`
+        );
+
         showToast('✅ Pedido cancelado e saldo devolvido!', 'success');
         setTimeout(() => carregarPedidos(), 600);
 
@@ -1660,6 +1698,14 @@ async function fazerPedido() {
 
         // Atualizar status para Em produção
         await sb.from('pedidos').update({ status: 'Em produção' }).eq('id', pedidoInserido.id);
+
+        // Notifica o ADM (Push): novo pedido — cabeçalho + cliente + valor
+        inserirNotificacao(
+            'adm',
+            null,
+            '🚨 NOVO PEDIDO',
+            `👤 Cliente: ${user.name}\n💰 Valor: R$ ${finalTotal.toFixed(2).replace('.', ',')}`
+        );
 
         // Sucesso — após a animação, ir para a tela com a lista de todos os pedidos
         confirmarEstado('sim');

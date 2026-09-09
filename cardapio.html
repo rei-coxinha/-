@@ -1394,6 +1394,35 @@ const VAPID_PUBLIC_KEY = 'BIlEWyrcCIfvM2Sj8fIJTOPaUhx5V7m52BRCHykFVinWJaKylTPfUi
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ===== NOTIFICAÇÕES PARA O ADM (mesmo formato oficial usado no adm.html) =====
+// Colunas da tabela notificacoes: id, phone, destinatario, titulo, mensagem, created_at, url.
+// destinatario = 'adm' → phone fica null. Dispara a dynamic-function para enviar o push.
+async function inserirNotificacao(destinatario, phone, titulo, mensagem, url = '/') {
+    const { data, error } = await sb.from('notificacoes').insert({
+        phone: phone || null,
+        destinatario,
+        titulo,
+        mensagem,
+        url
+    }).select('id').single();
+
+    if (error) {
+        console.error(`❌ [Notificação] ERRO (${destinatario} → ${phone}):`, error.message);
+        return null;
+    }
+
+    try {
+        const { error: fnError } = await sb.functions.invoke('dynamic-function', {
+            body: { notificacao_id: data.id }
+        });
+        if (fnError) console.error('❌ [Notificação] Erro ao chamar dynamic-function:', fnError.message);
+    } catch (e) {
+        console.error('❌ [Notificação] Exceção ao chamar dynamic-function:', e.message);
+    }
+
+    return data.id;
+}
+
 // ===== FUSO HORÁRIO SÃO PAULO (America/Sao_Paulo) =====
 const TZ_SP = 'America/Sao_Paulo';
 
@@ -2554,6 +2583,14 @@ async function confirmOrder() {
         // Atualizar dívida
         await sb.from("clientes").update({ debt: newDebt }).eq("phone", user.phone);
         user.debt = newDebt; atualizarCabecalho();
+
+        // Notifica o ADM (Push): novo pedido — cabeçalho + cliente + valor
+        inserirNotificacao(
+            'adm',
+            null,
+            '🚨 NOVO PEDIDO',
+            `👤 Cliente: ${user.name}\n💰 Valor: R$ ${finalTotal.toFixed(2).replace('.', ',')}`
+        );
 
         // ===== SOM + TOAST DE CONFIRMAÇÃO =====
         try {

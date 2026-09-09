@@ -269,7 +269,6 @@ self.addEventListener('push', (event) => {
     const options = {
       body: mensagem,
       icon: '/icons/icon-192.png',
-      badge: '/icons/badge-72.png',
 
       // Se o mesmo ID chegar novamente, o navegador substitui a anterior.
       tag: `rei-coxinha-${id}`,
