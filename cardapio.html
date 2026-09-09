@@ -2378,13 +2378,33 @@ function quantidadeTotalCarrinho() {
     return Object.values(cart).reduce((s, q) => s + (parseInt(q) || 0), 0);
 }
 
+// Lista o preço real de cada unidade no carrinho (repetido pela quantidade),
+// já considerando promoção ativa, ordenada da mais barata pra mais cara.
+// Usada pra abater exatamente o valor das coxinhas grátis usadas — nunca um
+// valor fixo que possa passar do preço real dos itens do pedido.
+function listaPrecosUnitariosCarrinho() {
+    const temOferta = clienteTemOferta();
+    const arr = [];
+    for (let id in cart) {
+        const p = products.find(x => x.id == id);
+        if (!p) continue;
+        const qty = parseInt(cart[id]) || 0;
+        const hasPromo = !!(p.pricePromo && temOferta);
+        const price = hasPromo ? parseFloat(p.pricePromo) : parseFloat(p.price) || 0;
+        for (let i = 0; i < qty; i++) arr.push(price);
+    }
+    return arr.sort((a, b) => a - b);
+}
+
 function calcularDescontoCoxinhasGratis() {
     if (!usarCoxinhasGratisAtivo) { coxinhasGratisQtdUsada = 0; return 0; }
     const saldo = Number(user?.coxinhas_gratis) || 0;
-    const qtdItens = quantidadeTotalCarrinho();
-    const qtdUsavel = Math.max(0, Math.min(saldo, qtdItens));
+    const precos = listaPrecosUnitariosCarrinho();
+    const qtdUsavel = Math.max(0, Math.min(saldo, precos.length));
     coxinhasGratisQtdUsada = qtdUsavel;
-    return qtdUsavel * VALOR_COXINHA_GRATIS;
+    let valor = 0;
+    for (let i = 0; i < qtdUsavel; i++) valor += precos[i];
+    return valor;
 }
 
 function applyCreditCalculation(availableCredit) {
@@ -2618,10 +2638,15 @@ async function confirmOrder() {
     const descontoCupomValor = cupomDescontoPct > 0 ? (total * cupomDescontoPct / 100) : 0;
     const creditoUsado = useCredit ? creditDiscount : 0;
 
-    // Coxinhas grátis: nunca mais que o saldo, nunca mais que a qtd de salgados do pedido.
+    // Coxinhas grátis: nunca mais que o saldo, nunca mais que a qtd de itens do pedido,
+    // e o valor abatido é o preço real dos itens mais baratos do carrinho — nunca um
+    // valor fixo que ultrapasse o total (o que fazia pedidos pequenos ficarem R$0
+    // mesmo quando a quantidade comprada era maior que o saldo de coxinhas grátis).
     const saldoCoxinhasGratis = Number(user?.coxinhas_gratis) || 0;
-    const qtdCoxinhasGratisUsar = usarCoxinhasGratisAtivo ? Math.max(0, Math.min(saldoCoxinhasGratis, totalItensQtd)) : 0;
-    const descontoCoxinhasValor = qtdCoxinhasGratisUsar * VALOR_COXINHA_GRATIS;
+    const precosUnitariosCarrinho = listaPrecosUnitariosCarrinho();
+    const qtdCoxinhasGratisUsar = usarCoxinhasGratisAtivo ? Math.max(0, Math.min(saldoCoxinhasGratis, precosUnitariosCarrinho.length)) : 0;
+    let descontoCoxinhasValor = 0;
+    for (let i = 0; i < qtdCoxinhasGratisUsar; i++) descontoCoxinhasValor += precosUnitariosCarrinho[i];
 
     const finalTotal = Math.max(0, total - creditoUsado - descontoCupomValor - descontoCoxinhasValor);
 
