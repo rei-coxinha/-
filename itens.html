@@ -498,6 +498,10 @@
         @keyframes salvandoPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.55; transform:scale(0.95); } }
         @keyframes barraCarregar { 0% { width:0%; } 80% { width:88%; } 100% { width:95%; } }
         @keyframes roboNao { 0%,100% { transform:translateX(0); } 20% { transform:translateX(-12px) rotate(-5deg); } 40% { transform:translateX(12px) rotate(5deg); } 60% { transform:translateX(-8px) rotate(-3deg); } 80% { transform:translateX(8px) rotate(3deg); } }
+        @keyframes svSpin    { to { transform:rotate(360deg); } }
+        @keyframes svSpinR   { to { transform:rotate(-360deg); } }
+        @keyframes svPulse   { 50% { transform:scale(1.12);opacity:.75; } }
+        @keyframes svFloat   { 0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)} }
 
         .ticket-card {
             background:var(--surface);
@@ -550,6 +554,42 @@
         .salvando-barra-bg { width:100%; height:4px; background:rgba(255,255,255,0.07); border-radius:4px; overflow:hidden; }
         .salvando-barra { height:100%; background:linear-gradient(135deg,var(--amber),var(--orange)); border-radius:4px; animation:barraCarregar 2.5s ease forwards; }
 
+        /* ===== ANIMAÇÃO SURREAL (pedido) — igual ao cardápio ===== */
+        .sv-scene { padding: 22px 20px 26px; display: flex; flex-direction: column; align-items: center; gap: 0; }
+        .sv-eyebrow { color: rgba(255,255,255,.35); font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+        .sv-headline { font-size: 22px; font-weight: 900; color: white; text-align: center; line-height: 1.1; letter-spacing: -0.5px; }
+        .sv-headline span { color: #ffca55; }
+        .sv-orbit { height: 200px; width: 100%; position: relative; display: grid; place-items: center; margin: 10px 0 8px; }
+        .sv-glow { position:absolute;width:160px;height:160px;border-radius:50%;
+          background:radial-gradient(circle,rgba(255,181,69,.22),rgba(255,129,47,.06) 45%,transparent 70%);
+          animation:svPulse 2.3s infinite ease-in-out; }
+        .sv-ring { position:absolute;width:175px;height:175px;border:1px solid rgba(255,202,85,.16);
+          border-radius:50%;animation:svSpin 10s linear infinite; }
+        .sv-ring::before,.sv-ring::after { content:"";position:absolute;border-radius:50%;
+          background:#ffca55;box-shadow:0 0 12px #ffca55; }
+        .sv-ring::before { width:6px;height:6px;top:18px;left:36px; }
+        .sv-ring::after  { width:4px;height:4px;right:22px;bottom:30px; }
+        .sv-ring2 { position:absolute;width:132px;height:132px;border:1px dashed rgba(117,232,255,.18);
+          border-radius:50%;animation:svSpinR 8s linear infinite; }
+        .sv-food { position:relative;width:110px;height:110px;border-radius:32px;
+          display:grid;place-items:center;font-size:56px;
+          background:linear-gradient(145deg,#252a35,#11141c);
+          border:1px solid rgba(255,255,255,.13);
+          box-shadow:inset 0 1px rgba(255,255,255,.1),0 18px 45px rgba(0,0,0,.45);
+          animation:svFloat 2.6s ease-in-out infinite;
+          overflow:hidden; }
+        .sv-food img { width:100%;height:100%;object-fit:cover;border-radius:32px; }
+        .sv-food .sv-result { font-size:52px;line-height:1; }
+        .sv-food::after { content:"";position:absolute;inset:-8px;border-radius:38px;
+          border:1px solid rgba(255,202,85,.12);pointer-events:none; }
+        .sv-progress { height:4px;border-radius:20px;background:rgba(255,255,255,.07);overflow:hidden;width:100%; }
+        .sv-progress b { display:block;width:0;height:100%;border-radius:20px;
+          background:linear-gradient(90deg,#ffca55,#ff8f3d,#b8f36b);
+          box-shadow:0 0 12px rgba(255,185,70,.5);
+          transition:width .9s cubic-bezier(.2,.8,.2,1); }
+        .sv-status { display:flex;align-items:center;justify-content:space-between;margin-top:9px;font-size:11px;color:rgba(255,255,255,.5); }
+        .sv-status strong { color:white; }
+
         /* Erro */
         .erro-wrap { padding:36px 22px; display:flex; flex-direction:column; align-items:center; gap:14px; }
         .erro-emoji { font-size:56px; animation:roboNao 0.5s ease-in-out 3; }
@@ -561,9 +601,6 @@
             position:fixed; font-size:26px; pointer-events:none;
             z-index:3100; animation:coxinhaCair linear forwards;
         }
-        .sv-food img { width:100%;height:100%;object-fit:cover;border-radius:32px; }
-        .sv-food .sv-result { font-size:52px;line-height:1; }
-        .sv-food { overflow:hidden; }
     </style>
 </head>
 <body>
