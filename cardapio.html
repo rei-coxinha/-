@@ -1098,6 +1098,7 @@
                 <span class="hub-icon">☰</span><span class="hub-label">Menu</span>
                 <span id="headerDot" class="hub-dot"></span>
             </button>
+            <button class="header-btn" onclick="window.location.href='convite.html'" aria-label="Convidar amigos" title="Convidar amigos" style="font-size:20px;">🎁</button>
         </div>
         <!-- Nome centralizado -->
         <div style="position:absolute;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;background:transparent;">
@@ -1153,6 +1154,7 @@
         <div id="cupomBox" style="display:none; margin-bottom:14px; background:rgba(241,196,15,0.08); border:1.5px solid rgba(241,196,15,0.3); border-radius:14px; padding:14px;">
             <div style="font-weight:800; color:#f1c40f; margin-bottom:10px;">🎟️ Cupons e créditos</div>
             <div id="cupomLista"></div>
+            <div id="coxinhasGratisCard" style="display:none;margin-top:10px;"></div>
         </div>
 
         <div id="finalTotalBox" style="display:none;"></div>
@@ -1493,6 +1495,7 @@ let currentOrderTotal = 0;
 let creditDiscount = 0;
 let cupomId = null;
 let cupomDescontoPct = 0;
+let coxinhasGratisUsadas = 0;
 let temaSelecionado = localStorage.getItem('temaSelecionado') || 'grafite';
 
 // ===== UTILS DE INIT =====
@@ -1573,16 +1576,13 @@ window.onload = async () => {
         // Adicionar histórico inicial
         window.history.pushState({ state: 'home' }, '', window.location.href);
 
-        // Link especial: usa o MESMO auth() do login manual e o MESMO armazenamento.
-        const loginEspecialInicial = obterLoginEspecial();
-        if (loginEspecialInicial) {
-            const phoneEspecial = normalizarTelefoneLogin(loginEspecialInicial.telefone);
-            const campoPhone = document.getElementById('userPhone');
-            const campoNome = document.getElementById('userName');
-            if (campoPhone) campoPhone.value = loginEspecialInicial.telefone;
-            if (campoNome && loginEspecialInicial.nome) campoNome.value = loginEspecialInicial.nome;
-            await auth();
-            return;
+        // O parâmetro ?auto= identifica apenas quem convidou.
+        // Nunca usa o telefone/nome do link para fazer login ou cadastro automático.
+        // Guardamos a origem nesta sessão para que a recompensa só possa ocorrer
+        // se o convite estava presente antes do cadastro.
+        const conviteInicial = obterIndicacaoDoLink();
+        if (conviteInicial) {
+            sessionStorage.setItem('rei_convite_pendente', JSON.stringify(conviteInicial));
         }
 
         // Verificar se já tem login salvo
@@ -1594,7 +1594,7 @@ window.onload = async () => {
                     8000, 'Timeout ao buscar cliente'
                 );
                 if (client) {
-                    user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa };
+                    user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa, coxinhas_gratis: Number(client.coxinhas_gratis) || 0 };
                     // Salvar dados completos para uso offline
                     localStorage.setItem('rei_user', JSON.stringify(user));
                     clearTimeout(timeoutGlobal);
@@ -1681,19 +1681,20 @@ window.onload = async () => {
 };
 
 
-// ===== LOGIN AUTOMÁTICO POR LINK ESPECIAL =====
-function obterLoginEspecial() {
+// ===== CONVITE / INDICAÇÃO =====
+function obterIndicacaoDoLink() {
     try {
-        const params = new URLSearchParams(window.location.search);
-        const raw = params.get('auto');
+        const raw = new URLSearchParams(window.location.search).get('auto');
         if (!raw) return null;
         const pos = raw.indexOf('=');
-        if (pos < 1) return null;  // Número sem nome = inválido
-        const telefone = raw.slice(0, pos).replace(/\D/g, '');
-        const nome = raw.slice(pos + 1).trim();
-        if (!telefone || !nome) return null;  // Ambos obrigatórios
-        return { telefone, nome };
-    } catch (e) { return null; }
+        if (pos < 1) return null;
+        const indicadorPhone = raw.slice(0, pos).replace(/\D/g, '');
+        const indicadorNome = raw.slice(pos + 1).trim();
+        if (!indicadorPhone) return null;
+        return { indicadorPhone, indicadorNome };
+    } catch (e) {
+        return null;
+    }
 }
 
 function normalizarTelefoneLogin(valor) {
@@ -1707,34 +1708,44 @@ function normalizarTelefoneLogin(valor) {
     return phone;
 }
 
+async function processarIndicacaoNovoCliente(clientePhone, clienteNome) {
+    let convite = null;
+    try { convite = JSON.parse(sessionStorage.getItem('rei_convite_pendente') || 'null'); } catch(e) {}
+    if (!convite) convite = obterIndicacaoDoLink();
+    if (!convite) return false;
+    if (!clientePhone || clientePhone === convite.indicadorPhone) return false;
+
+    try {
+        const { data, error } = await sb.rpc('processar_indicacao', {
+            p_indicador_phone: convite.indicadorPhone,
+            p_indicado_phone: clientePhone,
+            p_indicado_nome: clienteNome || 'Cliente'
+        });
+        if (error) throw error;
+        if (data?.awarded) {
+            sessionStorage.removeItem('rei_convite_pendente');
+            showToast('🎁 Você ganhou 10 coxinhas grátis!', 'success', 4500);
+            return true;
+        }
+        sessionStorage.removeItem('rei_convite_pendente');
+    } catch (e) {
+        console.warn('[Convite] Não foi possível registrar a indicação:', e.message);
+    }
+    return false;
+}
+
 // ===== AUTH =====
 async function auth() {
     const btn = document.getElementById('btnLogin');
     btn.disabled = true; btn.textContent = "Entrando...";
     document.getElementById('loginError').style.display = 'none';
 
-    // Link especial tem prioridade sobre qualquer login salvo neste aparelho.
-    const loginEspecial = obterLoginEspecial();
-    let savedPhone = localStorage.getItem('rei_phone');
+    const savedPhone = localStorage.getItem('rei_phone');
     let phone;
 
-    if (loginEspecial) {
-        phone = normalizarTelefoneLogin(loginEspecial.telefone);
-        if (!phone) {
-            showLoginError("Número do link inválido");
-            btn.disabled = false; btn.textContent = "Entrar";
-            return;
-        }
-        // O link especial substitui o cliente anterior localmente, como um login normal faria.
-        localStorage.removeItem('rei_phone');
-        localStorage.removeItem('rei_user');
-        const nomeLink = document.getElementById('userName');
-        if (nomeLink && loginEspecial.nome) nomeLink.value = loginEspecial.nome;
-    } else if (savedPhone) {
-        // ✅ USUÁRIO JÁ CADASTRADO - usa número salvo automaticamente
+    if (savedPhone) {
         phone = savedPhone;
     } else {
-        // ❌ PRIMEIRO CADASTRO - pedir número
         phone = normalizarTelefoneLogin(document.getElementById('userPhone').value);
         if (!phone) {
             showLoginError("Digite o número completo (mínimo 8 dígitos)");
@@ -1743,19 +1754,23 @@ async function auth() {
         }
     }
 
-    // Buscar cliente
-    let { data: client } = await sb.from("clientes").select("*").eq("phone", phone).maybeSingle();
-    const clienteNovo = !client; // true se não existia no Supabase
+    let { data: client, error: clientError } = await sb.from("clientes").select("*").eq("phone", phone).maybeSingle();
+    if (clientError) {
+        showLoginError(clientError.message || 'Não foi possível consultar seu cadastro');
+        btn.disabled = false; btn.textContent = "Entrar";
+        return;
+    }
+
+    const clienteNovo = !client;
 
     if (!client) {
-        // No link especial, mantém exatamente o fluxo manual: primeiro mostra o nome.
         const nb = document.getElementById('nameBox');
-        if (!loginEspecial && (nb.style.display === 'none' || nb.style.display === '')) {
+        if (nb.style.display === 'none' || nb.style.display === '') {
             nb.style.display = 'block';
             btn.disabled = false; btn.textContent = "Entrar";
             return;
         }
-        const name = document.getElementById('userName').value.trim() || (loginEspecial && loginEspecial.nome ? loginEspecial.nome.trim() : '');
+        const name = document.getElementById('userName').value.trim();
         if (!name) {
             showLoginError("Digite seu nome");
             btn.disabled = false; btn.textContent = "Entrar";
@@ -1768,35 +1783,42 @@ async function auth() {
             return;
         }
         client = newClient;
-
-        // ✅ SALVAR NÚMERO NA PRIMEIRA VEZ - Próximas vezes não pedirá mais
         localStorage.setItem('rei_phone', phone);
+
+        // Só depois de criar a conta tentamos registrar o convite.
+        await processarIndicacaoNovoCliente(phone, client.name);
+
+        // Recarrega o saldo para refletir as 10 coxinhas recebidas.
+        const { data: atualizado } = await sb.from('clientes').select('*').eq('phone', phone).maybeSingle();
+        if (atualizado) client = atualizado;
     }
 
-    user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa };
+    user = {
+        name: client.name,
+        phone: client.phone,
+        debt: client.debt,
+        show_name: client.show_name,
+        created_at: client.created_at,
+        oferta_ativa: client.oferta_ativa,
+        coxinhas_gratis: Number(client.coxinhas_gratis) || 0
+    };
 
-    // Salvar número e dados completos do usuário (funciona offline)
     localStorage.setItem('rei_phone', phone);
     localStorage.setItem('rei_user', JSON.stringify(user));
-    window._bcSend && window._bcSend({ type: 'LOGIN', phone: phone, user: user });
 
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-
+    clearTimeout(timeoutGlobal);
+    _mostrarApp();
     atualizarCabecalho();
     carregarPrivacidade();
     carregarTemaSalvo();
     await loadProducts();
     iniciarRealtimeCliente(phone);
     iniciarAtualizacaoPeriodicaSaldo();
-    btn.disabled = false; btn.textContent = "Entrar";
-
-
-    // ✅ POPUP DE OFERTA — aparece todo login, baseado no created_at do Supabase
-    mostrarPopupOferta(client, clienteNovo);
-
-    // ✅ REGISTRAR PUSH NATIVO DO CLIENTE
     registrarPushCliente(phone);
+    setTimeout(() => renderHistoricoSaldo(), 500);
+
+    btn.disabled = false; btn.textContent = "Entrar";
+    mostrarPopupOferta(client, clienteNovo);
 }
 
 function mostrarPopupOferta(client, clienteNovo) {
@@ -2163,7 +2185,7 @@ async function atualizarSaldoDoBanco() {
     try {
         const { data, error } = await sb
             .from('clientes')
-            .select('debt')
+            .select('debt, coxinhas_gratis')
             .eq('phone', user.phone)
             .maybeSingle();
 
@@ -2172,15 +2194,16 @@ async function atualizarSaldoDoBanco() {
             return;
         }
 
-        if (data && data.debt !== undefined && data.debt !== null) {
-            const novoSaldo = Number(data.debt);
-            const saldoAnterior = Number(user.debt) || 0;
-
-            // Só redesenha se realmente mudou.
-            if (novoSaldo !== saldoAnterior) {
+        if (data) {
+            const novoSaldo = Number(data.debt) || 0;
+            const novasCoxinhas = Number(data.coxinhas_gratis) || 0;
+            const mudou = novoSaldo !== (Number(user.debt) || 0) || novasCoxinhas !== (Number(user.coxinhas_gratis) || 0);
+            if (mudou) {
                 user.debt = novoSaldo;
+                user.coxinhas_gratis = novasCoxinhas;
+                localStorage.setItem('rei_user', JSON.stringify(user));
                 atualizarCabecalho();
-                console.log('[Saldo] Atualizado automaticamente:', novoSaldo);
+                console.log('[Saldo] Atualizado automaticamente:', novoSaldo, 'coxinhas grátis:', novasCoxinhas);
             }
         }
     } catch (e) {
@@ -2306,6 +2329,7 @@ function showPayModal() {
     if (ht) { ht.innerText = 'R$ ' + currentOrderTotal.toFixed(2).replace('.', ','); ht.style.textDecoration = 'none'; ht.style.color = 'white'; }
     const hf = document.getElementById('payHeaderFinal');
     if (hf) hf.innerText = 'R$ ' + currentOrderTotal.toFixed(2).replace('.', ',');
+    coxinhasGratisUsadas = 0;
     renderItensResumo();
     setupCreditOption();
     carregarCupons();
@@ -2344,8 +2368,15 @@ function applyCreditCalculation(availableCredit) {
 
 function updateFinalTotalDisplay() {
     const descontoCupomValor = cupomDescontoPct > 0 ? (currentOrderTotal * cupomDescontoPct / 100) : 0;
-    const totalFinal = Math.max(0, currentOrderTotal - creditDiscount - descontoCupomValor);
-    const temDesconto = creditDiscount > 0 || descontoCupomValor > 0;
+    const saldoCoxinhas = Math.max(0, Number(user?.coxinhas_gratis) || 0);
+    const unidades = totalUnidadesDoCarrinho();
+    coxinhasGratisUsadas = Math.min(Math.max(0, Number(coxinhasGratisUsadas) || 0), saldoCoxinhas, unidades);
+    const descontoCoxinhasValor = coxinhasGratisUsadas * 1.50;
+    const totalAposDescontos = Math.max(0, currentOrderTotal - descontoCoxinhasValor - descontoCupomValor);
+    const creditAplicavel = Math.min(creditDiscount, totalAposDescontos);
+    creditDiscount = creditAplicavel;
+    const totalFinal = Math.max(0, currentOrderTotal - descontoCoxinhasValor - creditDiscount - descontoCupomValor);
+    const temDesconto = creditDiscount > 0 || descontoCupomValor > 0 || descontoCoxinhasValor > 0;
 
     const elTotal = document.getElementById('payHeaderTotal');
     const elFinal = document.getElementById('payHeaderFinal');
@@ -2359,6 +2390,47 @@ function updateFinalTotalDisplay() {
     if (elFinal) {
         elFinal.innerText = 'R$ ' + totalFinal.toFixed(2).replace('.', ',');
     }
+    atualizarCoxinhasGratisUI();
+}
+
+function totalUnidadesDoCarrinho() {
+    return Object.values(cart).reduce((s, q) => s + (parseInt(q) || 0), 0);
+}
+
+function atualizarCoxinhasGratisUI() {
+    const card = document.getElementById('coxinhasGratisCard');
+    if (!card) return;
+    const saldo = Math.max(0, Number(user?.coxinhas_gratis) || 0);
+    const unidades = totalUnidadesDoCarrinho();
+    const podeUsar = saldo > 0 && unidades > 0;
+    const usadas = podeUsar && coxinhasGratisUsadas ? Math.min(coxinhasGratisUsadas, saldo, unidades) : 0;
+    coxinhasGratisUsadas = usadas;
+    const desconto = usadas * 1.5;
+    card.style.display = saldo > 0 ? 'block' : 'none';
+    if (!saldo) { card.innerHTML = ''; return; }
+    card.innerHTML = `
+        <div style="background:rgba(37,211,102,0.08);border:2px solid ${usadas ? '#25d366' : 'rgba(37,211,102,0.35)'};border-radius:14px;padding:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div>
+                    <div style="font-size:14px;font-weight:900;color:#25d366;">🎁 Coxinhas grátis</div>
+                    <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.55);margin-top:3px;">Você tem ${saldo} disponível${saldo === 1 ? '' : 'is'}</div>
+                </div>
+                <button type="button" onclick="toggleCoxinhasGratis()" style="border:none;border-radius:10px;padding:9px 12px;background:${usadas ? 'rgba(255,255,255,.08)' : 'linear-gradient(135deg,#25d366,#1aad52)'};color:white;font-weight:900;font-size:11px;cursor:pointer;">${usadas ? 'Remover' : 'Usar grátis'}</button>
+            </div>
+            ${usadas ? `<div style="margin-top:9px;font-size:12px;font-weight:800;color:#25d366;">${usadas} ${usadas === 1 ? 'salgado grátis' : 'salgados grátis'} · desconto de R$ ${desconto.toFixed(2).replace('.',',')}</div>` : ''}
+        </div>`;
+}
+
+function toggleCoxinhasGratis() {
+    const saldo = Math.max(0, Number(user?.coxinhas_gratis) || 0);
+    const unidades = totalUnidadesDoCarrinho();
+    if (coxinhasGratisUsadas > 0) {
+        coxinhasGratisUsadas = 0;
+    } else if (saldo > 0 && unidades > 0) {
+        coxinhasGratisUsadas = Math.min(saldo, unidades);
+    }
+    updateFinalTotalDisplay();
+    atualizarCoxinhasGratisUI();
 }
 
 async function carregarCupons() {
@@ -2383,7 +2455,7 @@ async function carregarCupons() {
         const temCredito = user?.debt < 0;
         const creditValue = temCredito ? Math.abs(user.debt) : 0;
 
-        if (!cupons.length && !temCredito) {
+        if (!cupons.length && !temCredito && !(Number(user?.coxinhas_gratis) > 0)) {
             box.style.display = 'none';
             cupomDescontoPct = 0;
             cupomId = null;
@@ -2420,6 +2492,7 @@ async function carregarCupons() {
 
         cardsHtml += `</div>`;
         lista.innerHTML = cardsHtml;
+        atualizarCoxinhasGratisUI();
 
         if (cupons.length > 0) {
             const maiorCupom = cupons[0];
@@ -2472,7 +2545,7 @@ function selecionarCupom(pct, el) {
     else updateFinalTotalDisplay();
 }
 
-function closePayModal() { document.getElementById('payModal').classList.remove('active'); cupomDesconto = 0; cupomId = null; cupomDescontoPct = 0; creditDiscount = 0; }
+function closePayModal() { document.getElementById('payModal').classList.remove('active'); cupomDesconto = 0; cupomId = null; cupomDescontoPct = 0; creditDiscount = 0; coxinhasGratisUsadas = 0; }
 
 
 async function confirmOrder() {
@@ -2518,10 +2591,14 @@ async function confirmOrder() {
     }
     if (total === 0) { btn.disabled = false; return; }
 
+    const unidadesPedido = Object.values(cart).reduce((s, q) => s + (parseInt(q) || 0), 0);
+    const saldoCoxinhas = Math.max(0, Number(user?.coxinhas_gratis) || 0);
+    const coxinhasUsadas = Math.min(Math.max(0, Number(coxinhasGratisUsadas) || 0), saldoCoxinhas, unidadesPedido);
+    const descontoCoxinhasValor = coxinhasUsadas * 1.50;
     const useCredit = user.debt < 0; // crédito sempre aplicado automaticamente
     const descontoCupomValor = cupomDescontoPct > 0 ? (total * cupomDescontoPct / 100) : 0;
-    const creditoUsado = useCredit ? creditDiscount : 0;
-    const finalTotal = Math.max(0, total - creditoUsado - descontoCupomValor);
+    const creditoUsado = useCredit ? Math.min(creditDiscount, Math.max(0, total - descontoCoxinhasValor - descontoCupomValor)) : 0;
+    const finalTotal = Math.max(0, total - creditoUsado - descontoCupomValor - descontoCoxinhasValor);
 
     const cupomPctParaExcluir = cupomDescontoPct;
     // Registra apenas o percentual no pedido; a carteira é consumida por RPC.
@@ -2530,6 +2607,9 @@ async function confirmOrder() {
     }
     if (creditoUsado > 0) {
         pedidoTexto += `💳 CREDITO:${creditoUsado.toFixed(2)}\n`;
+    }
+    if (coxinhasUsadas > 0) {
+        pedidoTexto += `🎁 COXINHAS_GRATIS:${coxinhasUsadas};DESCONTO:${descontoCoxinhasValor.toFixed(2)}\n`;
     }
 
     // Recalcular newDebt
@@ -2578,11 +2658,35 @@ async function confirmOrder() {
             if (cupomConsumido !== true) throw new Error('Cupom não pôde ser consumido.');
         }
 
+        // Consumir o saldo de coxinhas grátis somente após o pedido existir.
+        if (coxinhasUsadas > 0) {
+            const { data: coxinhasConsumidas, error: errCoxinhas } = await sb.rpc('usar_coxinhas_gratis', {
+                p_customer_phone: user.phone,
+                p_quantidade: coxinhasUsadas
+            });
+            if (errCoxinhas) throw errCoxinhas;
+            if (!coxinhasConsumidas?.success) throw new Error(coxinhasConsumidas?.message || 'Coxinhas grátis não puderam ser consumidas.');
+        }
+
         // Tickets e Diamantes liberados pelo ADM ao confirmar pagamento
 
         // Atualizar dívida
         await sb.from("clientes").update({ debt: newDebt }).eq("phone", user.phone);
-        user.debt = newDebt; atualizarCabecalho();
+        user.debt = newDebt;
+        if (coxinhasUsadas > 0) user.coxinhas_gratis = Math.max(0, (Number(user.coxinhas_gratis) || 0) - coxinhasUsadas);
+        atualizarCabecalho();
+
+        // Primeiro pedido marca a indicação; segundo pedido recompensa o indicador.
+        try {
+            const { data: recompensa, error: errRecompensa } = await sb.rpc('processar_recompensa_segundo_pedido', {
+                p_indicado_phone: user.phone,
+                p_pedido_id: pedidoInserido.id
+            });
+            if (errRecompensa) console.warn('[Convite] Erro ao processar recompensa:', errRecompensa.message);
+            else if (recompensa?.awarded) showToast('🎁 Quem te convidou ganhou 10 coxinhas!', 'success', 4500);
+        } catch (e) {
+            console.warn('[Convite] Falha na recompensa:', e.message);
+        }
 
         // Notifica o ADM (Push): novo pedido — cabeçalho + cliente + valor
         inserirNotificacao(
@@ -2617,7 +2721,7 @@ async function confirmOrder() {
         // ===== TICKET: SIM ✅ =====
         roboEstado('sim');
 
-        cart = {}; creditDiscount = 0; cupomDesconto = 0; cupomId = null; cupomDescontoPct = 0; render();
+        cart = {}; creditDiscount = 0; cupomDesconto = 0; cupomId = null; cupomDescontoPct = 0; coxinhasGratisUsadas = 0; render();
         btn.disabled = false;
 
     } catch(err) {
