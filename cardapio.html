@@ -1583,17 +1583,8 @@ window.onload = async () => {
         // Adicionar histórico inicial
         window.history.pushState({ state: 'home' }, '', window.location.href);
 
-        // Link especial: usa o MESMO auth() do login manual e o MESMO armazenamento.
-        const loginEspecialInicial = obterLoginEspecial();
-        if (loginEspecialInicial) {
-            const phoneEspecial = normalizarTelefoneLogin(loginEspecialInicial.telefone);
-            const campoPhone = document.getElementById('userPhone');
-            const campoNome = document.getElementById('userName');
-            if (campoPhone) campoPhone.value = loginEspecialInicial.telefone;
-            if (campoNome && loginEspecialInicial.nome) campoNome.value = loginEspecialInicial.nome;
-            await auth();
-            return;
-        }
+        // O parâmetro ?auto= é SOMENTE um convite.
+        // O visitante ainda precisa informar o próprio telefone e nome no login.
 
         // Verificar se já tem login salvo
         const savedPhone = localStorage.getItem('rei_phone');
