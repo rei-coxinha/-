@@ -1279,7 +1279,7 @@
 
 <!-- ===== MODAL "VOCÊ JÁ É CLIENTE" ===== -->
 <div id="modalJaCliente" style="
-    display:none; position:fixed; inset:0; z-index:5200;
+    display:none; position:fixed; inset:0; z-index:10000;
     background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
     align-items:center; justify-content:center;
     padding:24px 16px;
@@ -1882,6 +1882,12 @@ async function auth() {
 
     user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa, indicador_phone: client.indicador_phone || null, coxinhas_gratis: Number(client.coxinhas_gratis || 0) };
 
+    // ⚠️ Corrige bug antigo: no fluxo automático (link de convite), o loadingOverlay
+    // (spinner "O Rei da Coxinha", z-index mais alto que tudo) nunca era escondido.
+    // Resultado: a tela ficava "presa" no spinner, tampando o app e até a animação
+    // abaixo, mesmo com o login já concluído com sucesso.
+    _esconderLoading();
+
     // ===== ANIMAÇÃO "VOCÊ JÁ É CLIENTE" =====
     // Mostra quando o telefone identificado já tinha cadastro E a tentativa não foi
     // um simples auto-login com número salvo (ou seja: veio de link de convite/indicação
@@ -2002,6 +2008,12 @@ function _fecharBoasVindas() {
 
 
 function showLoginError(msg) {
+    // Garante que a tela de login fique visível e o spinner suma, mesmo se o
+    // erro tiver acontecido durante o fluxo automático do link (onde a tela
+    // de login normalmente fica escondida).
+    _esconderLoading();
+    const ls = document.getElementById('loginScreen');
+    if (ls) ls.style.display = 'flex';
     const el = document.getElementById('loginError');
     el.textContent = msg;
     el.style.display = 'block';
