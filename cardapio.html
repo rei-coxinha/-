@@ -1107,6 +1107,7 @@
         </div>
         <!-- 🔔 direita -->
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <button class="header-btn" onclick="window.location.href='./convite.html'" aria-label="Convide e ganhe" title="Convide e ganhe">🎁</button>
         </div>
     </div>
 
@@ -1153,6 +1154,17 @@
         <div id="cupomBox" style="display:none; margin-bottom:14px; background:rgba(241,196,15,0.08); border:1.5px solid rgba(241,196,15,0.3); border-radius:14px; padding:14px;">
             <div style="font-weight:800; color:#f1c40f; margin-bottom:10px;">🎟️ Cupons e créditos</div>
             <div id="cupomLista"></div>
+        </div>
+
+        <!-- Coxinhas grátis (indicação) -->
+        <div id="coxinhasGratisBox" style="display:none; margin-bottom:14px; background:rgba(241,196,15,0.08); border:1.5px solid rgba(241,196,15,0.3); border-radius:14px; padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div>
+                    <div style="font-weight:800; color:#f1c40f; margin-bottom:2px;">🎁 Coxinhas grátis</div>
+                    <div style="font-size:12px;color:rgba(255,255,255,0.55);">Você tem <b id="coxinhasGratisSaldoTxt">0</b> coxinhas grátis</div>
+                </div>
+                <button id="btnUsarCoxinhasGratis" onclick="toggleUsarCoxinhasGratis()" style="flex-shrink:0;padding:10px 14px;background:rgba(241,196,15,0.15);border:1.5px solid #f1c40f;border-radius:12px;color:#f1c40f;font-weight:800;font-size:12.5px;cursor:pointer;white-space:nowrap;">Usar coxinhas grátis</button>
+            </div>
         </div>
 
         <div id="finalTotalBox" style="display:none;"></div>
@@ -1493,6 +1505,9 @@ let currentOrderTotal = 0;
 let creditDiscount = 0;
 let cupomId = null;
 let cupomDescontoPct = 0;
+let usarCoxinhasGratisAtivo = false;
+let coxinhasGratisQtdUsada = 0;
+const VALOR_COXINHA_GRATIS = 1.50;
 let temaSelecionado = localStorage.getItem('temaSelecionado') || 'grafite';
 
 // ===== UTILS DE INIT =====
@@ -1573,17 +1588,8 @@ window.onload = async () => {
         // Adicionar histórico inicial
         window.history.pushState({ state: 'home' }, '', window.location.href);
 
-        // Link especial: usa o MESMO auth() do login manual e o MESMO armazenamento.
-        const loginEspecialInicial = obterLoginEspecial();
-        if (loginEspecialInicial) {
-            const phoneEspecial = normalizarTelefoneLogin(loginEspecialInicial.telefone);
-            const campoPhone = document.getElementById('userPhone');
-            const campoNome = document.getElementById('userName');
-            if (campoPhone) campoPhone.value = loginEspecialInicial.telefone;
-            if (campoNome && loginEspecialInicial.nome) campoNome.value = loginEspecialInicial.nome;
-            await auth();
-            return;
-        }
+        // Convite/indicação por link: apenas guarda quem indicou, sem logar automaticamente.
+        salvarConvitePendente();
 
         // Verificar se já tem login salvo
         const savedPhone = localStorage.getItem('rei_phone');
@@ -1594,7 +1600,7 @@ window.onload = async () => {
                     8000, 'Timeout ao buscar cliente'
                 );
                 if (client) {
-                    user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa };
+                    user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa, coxinhas_gratis: client.coxinhas_gratis || 0 };
                     // Salvar dados completos para uso offline
                     localStorage.setItem('rei_user', JSON.stringify(user));
                     clearTimeout(timeoutGlobal);
@@ -1681,19 +1687,46 @@ window.onload = async () => {
 };
 
 
-// ===== LOGIN AUTOMÁTICO POR LINK ESPECIAL =====
-function obterLoginEspecial() {
+// ===== CONVITE/INDICAÇÃO POR LINK =====
+// Formato do link: cardapio.html?auto=TELEFONE_DO_INDICADOR=NOME_DO_INDICADOR
+// Importante: o telefone do link é SEMPRE de quem indicou. Nunca é usado para logar
+// nem para preencher o cadastro de quem abriu o link.
+function obterParametroConvite() {
     try {
         const params = new URLSearchParams(window.location.search);
         const raw = params.get('auto');
         if (!raw) return null;
         const pos = raw.indexOf('=');
-        if (pos < 1) return null;  // Número sem nome = inválido
+        if (pos < 1) return null; // Número sem nome = inválido
         const telefone = raw.slice(0, pos).replace(/\D/g, '');
         const nome = raw.slice(pos + 1).trim();
-        if (!telefone || !nome) return null;  // Ambos obrigatórios
+        if (!telefone || !nome) return null; // Ambos obrigatórios
         return { telefone, nome };
     } catch (e) { return null; }
+}
+
+function salvarConvitePendente() {
+    const convite = obterParametroConvite();
+    if (!convite) return;
+    const phoneIndicador = normalizarTelefoneLogin(convite.telefone);
+    if (!phoneIndicador) return;
+    // Não sobrescreve um convite já salvo (ex: usuário navegou e voltou à tela de login).
+    if (!localStorage.getItem('rei_convite_pendente')) {
+        localStorage.setItem('rei_convite_pendente', JSON.stringify({ phone: phoneIndicador, nome: convite.nome }));
+    }
+    // Limpa o parâmetro da URL para não ficar reaplicando/reexibindo.
+    window.history.replaceState({}, '', window.location.pathname);
+}
+
+function obterConvitePendente() {
+    try {
+        const raw = localStorage.getItem('rei_convite_pendente');
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+}
+
+function limparConvitePendente() {
+    localStorage.removeItem('rei_convite_pendente');
 }
 
 function normalizarTelefoneLogin(valor) {
@@ -1713,24 +1746,10 @@ async function auth() {
     btn.disabled = true; btn.textContent = "Entrando...";
     document.getElementById('loginError').style.display = 'none';
 
-    // Link especial tem prioridade sobre qualquer login salvo neste aparelho.
-    const loginEspecial = obterLoginEspecial();
     let savedPhone = localStorage.getItem('rei_phone');
     let phone;
 
-    if (loginEspecial) {
-        phone = normalizarTelefoneLogin(loginEspecial.telefone);
-        if (!phone) {
-            showLoginError("Número do link inválido");
-            btn.disabled = false; btn.textContent = "Entrar";
-            return;
-        }
-        // O link especial substitui o cliente anterior localmente, como um login normal faria.
-        localStorage.removeItem('rei_phone');
-        localStorage.removeItem('rei_user');
-        const nomeLink = document.getElementById('userName');
-        if (nomeLink && loginEspecial.nome) nomeLink.value = loginEspecial.nome;
-    } else if (savedPhone) {
+    if (savedPhone) {
         // ✅ USUÁRIO JÁ CADASTRADO - usa número salvo automaticamente
         phone = savedPhone;
     } else {
@@ -1747,15 +1766,15 @@ async function auth() {
     let { data: client } = await sb.from("clientes").select("*").eq("phone", phone).maybeSingle();
     const clienteNovo = !client; // true se não existia no Supabase
 
+    let cadastroNovo = false;
     if (!client) {
-        // No link especial, mantém exatamente o fluxo manual: primeiro mostra o nome.
         const nb = document.getElementById('nameBox');
-        if (!loginEspecial && (nb.style.display === 'none' || nb.style.display === '')) {
+        if (nb.style.display === 'none' || nb.style.display === '') {
             nb.style.display = 'block';
             btn.disabled = false; btn.textContent = "Entrar";
             return;
         }
-        const name = document.getElementById('userName').value.trim() || (loginEspecial && loginEspecial.nome ? loginEspecial.nome.trim() : '');
+        const name = document.getElementById('userName').value.trim();
         if (!name) {
             showLoginError("Digite seu nome");
             btn.disabled = false; btn.textContent = "Entrar";
@@ -1768,12 +1787,32 @@ async function auth() {
             return;
         }
         client = newClient;
+        cadastroNovo = true;
 
         // ✅ SALVAR NÚMERO NA PRIMEIRA VEZ - Próximas vezes não pedirá mais
         localStorage.setItem('rei_phone', phone);
     }
 
-    user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa };
+    user = { name: client.name, phone: client.phone, debt: client.debt, show_name: client.show_name, created_at: client.created_at, oferta_ativa: client.oferta_ativa, coxinhas_gratis: client.coxinhas_gratis || 0 };
+
+    // ✅ EFETIVAR INDICAÇÃO (somente se o cadastro é realmente novo)
+    if (cadastroNovo) {
+        const convite = obterConvitePendente();
+        if (convite && convite.phone && convite.phone !== phone) {
+            try {
+                const { data: indicacaoOk } = await sb.rpc('registrar_indicacao', {
+                    p_indicador_phone: convite.phone,
+                    p_indicado_phone: phone,
+                    p_indicado_nome: user.name
+                });
+                if (indicacaoOk === true) {
+                    user.coxinhas_gratis = (user.coxinhas_gratis || 0) + 10;
+                    setTimeout(() => showToast('🎁 Você ganhou 10 coxinhas grátis!', 'success', 4000), 800);
+                }
+            } catch (e) { console.warn('Erro ao registrar indicação:', e); }
+        }
+        limparConvitePendente();
+    }
 
     // Salvar número e dados completos do usuário (funciona offline)
     localStorage.setItem('rei_phone', phone);
@@ -2309,6 +2348,7 @@ function showPayModal() {
     renderItensResumo();
     setupCreditOption();
     carregarCupons();
+    carregarCoxinhasGratisBox();
     atualizarAvisoMinimo();
 }
 
@@ -2334,6 +2374,19 @@ function setupCreditOption() {
 }
 
 
+function quantidadeTotalCarrinho() {
+    return Object.values(cart).reduce((s, q) => s + (parseInt(q) || 0), 0);
+}
+
+function calcularDescontoCoxinhasGratis() {
+    if (!usarCoxinhasGratisAtivo) { coxinhasGratisQtdUsada = 0; return 0; }
+    const saldo = Number(user?.coxinhas_gratis) || 0;
+    const qtdItens = quantidadeTotalCarrinho();
+    const qtdUsavel = Math.max(0, Math.min(saldo, qtdItens));
+    coxinhasGratisQtdUsada = qtdUsavel;
+    return qtdUsavel * VALOR_COXINHA_GRATIS;
+}
+
 function applyCreditCalculation(availableCredit) {
     // Crédito é aplicado sobre o valor já com desconto do cupom
     const descontoCupom = cupomDescontoPct > 0 ? (currentOrderTotal * cupomDescontoPct / 100) : 0;
@@ -2344,8 +2397,9 @@ function applyCreditCalculation(availableCredit) {
 
 function updateFinalTotalDisplay() {
     const descontoCupomValor = cupomDescontoPct > 0 ? (currentOrderTotal * cupomDescontoPct / 100) : 0;
-    const totalFinal = Math.max(0, currentOrderTotal - creditDiscount - descontoCupomValor);
-    const temDesconto = creditDiscount > 0 || descontoCupomValor > 0;
+    const descontoCoxinhas = calcularDescontoCoxinhasGratis();
+    const totalFinal = Math.max(0, currentOrderTotal - creditDiscount - descontoCupomValor - descontoCoxinhas);
+    const temDesconto = creditDiscount > 0 || descontoCupomValor > 0 || descontoCoxinhas > 0;
 
     const elTotal = document.getElementById('payHeaderTotal');
     const elFinal = document.getElementById('payHeaderFinal');
@@ -2472,7 +2526,47 @@ function selecionarCupom(pct, el) {
     else updateFinalTotalDisplay();
 }
 
-function closePayModal() { document.getElementById('payModal').classList.remove('active'); cupomDesconto = 0; cupomId = null; cupomDescontoPct = 0; creditDiscount = 0; }
+function carregarCoxinhasGratisBox() {
+    const box = document.getElementById('coxinhasGratisBox');
+    const saldoTxt = document.getElementById('coxinhasGratisSaldoTxt');
+    const btn = document.getElementById('btnUsarCoxinhasGratis');
+    if (!box) return;
+    const saldo = Number(user?.coxinhas_gratis) || 0;
+    usarCoxinhasGratisAtivo = false;
+    coxinhasGratisQtdUsada = 0;
+    if (saldo <= 0) {
+        box.style.display = 'none';
+        return;
+    }
+    box.style.display = 'block';
+    if (saldoTxt) saldoTxt.textContent = saldo;
+    if (btn) {
+        btn.textContent = 'Usar coxinhas grátis';
+        btn.style.background = 'rgba(241,196,15,0.15)';
+        btn.style.color = '#f1c40f';
+    }
+}
+
+function toggleUsarCoxinhasGratis() {
+    usarCoxinhasGratisAtivo = !usarCoxinhasGratisAtivo;
+    const btn = document.getElementById('btnUsarCoxinhasGratis');
+    if (btn) {
+        if (usarCoxinhasGratisAtivo) {
+            btn.textContent = '✓ Ativado';
+            btn.style.background = '#f1c40f';
+            btn.style.color = '#1a1400';
+        } else {
+            btn.textContent = 'Usar coxinhas grátis';
+            btn.style.background = 'rgba(241,196,15,0.15)';
+            btn.style.color = '#f1c40f';
+        }
+    }
+    // Recalcula tudo (crédito depende do total após cupom, mas não das coxinhas)
+    if (user?.debt < 0) applyCreditCalculation(Math.abs(user.debt));
+    else updateFinalTotalDisplay();
+}
+
+function closePayModal() { document.getElementById('payModal').classList.remove('active'); cupomDesconto = 0; cupomId = null; cupomDescontoPct = 0; creditDiscount = 0; usarCoxinhasGratisAtivo = false; coxinhasGratisQtdUsada = 0; }
 
 
 async function confirmOrder() {
@@ -2486,6 +2580,7 @@ async function confirmOrder() {
     try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
 
     let total = 0; 
+    let totalItensQtd = 0;
     let pedidoTextoFritos = "";
     let pedidoTextoCrus = "";
     const temOferta = clienteTemOferta(); // Recalcular oferta em tempo real
@@ -2506,6 +2601,7 @@ async function confirmOrder() {
                 pedidoTextoFritos += linha + '\n';
             }
             total += price * qty;
+            totalItensQtd += qty;
         } 
     }
     
@@ -2521,7 +2617,13 @@ async function confirmOrder() {
     const useCredit = user.debt < 0; // crédito sempre aplicado automaticamente
     const descontoCupomValor = cupomDescontoPct > 0 ? (total * cupomDescontoPct / 100) : 0;
     const creditoUsado = useCredit ? creditDiscount : 0;
-    const finalTotal = Math.max(0, total - creditoUsado - descontoCupomValor);
+
+    // Coxinhas grátis: nunca mais que o saldo, nunca mais que a qtd de salgados do pedido.
+    const saldoCoxinhasGratis = Number(user?.coxinhas_gratis) || 0;
+    const qtdCoxinhasGratisUsar = usarCoxinhasGratisAtivo ? Math.max(0, Math.min(saldoCoxinhasGratis, totalItensQtd)) : 0;
+    const descontoCoxinhasValor = qtdCoxinhasGratisUsar * VALOR_COXINHA_GRATIS;
+
+    const finalTotal = Math.max(0, total - creditoUsado - descontoCupomValor - descontoCoxinhasValor);
 
     const cupomPctParaExcluir = cupomDescontoPct;
     // Registra apenas o percentual no pedido; a carteira é consumida por RPC.
@@ -2530,6 +2632,9 @@ async function confirmOrder() {
     }
     if (creditoUsado > 0) {
         pedidoTexto += `💳 CREDITO:${creditoUsado.toFixed(2)}\n`;
+    }
+    if (qtdCoxinhasGratisUsar > 0) {
+        pedidoTexto += `🎁 COXINHAS_GRATIS:${qtdCoxinhasGratisUsar}\n`;
     }
 
     // Recalcular newDebt
@@ -2578,6 +2683,24 @@ async function confirmOrder() {
             if (cupomConsumido !== true) throw new Error('Cupom não pôde ser consumido.');
         }
 
+        // Consumir as coxinhas grátis usadas neste pedido.
+        if (qtdCoxinhasGratisUsar > 0) {
+            try {
+                const { data: coxinhasOk } = await sb.rpc('usar_coxinhas_gratis', {
+                    p_customer_phone: user.phone,
+                    p_quantidade: qtdCoxinhasGratisUsar
+                });
+                if (coxinhasOk === true) {
+                    user.coxinhas_gratis = Math.max(0, saldoCoxinhasGratis - qtdCoxinhasGratisUsar);
+                    localStorage.setItem('rei_user', JSON.stringify(user));
+                }
+            } catch (e) { console.warn('Erro ao consumir coxinhas grátis:', e); }
+        }
+
+        // Indicação: registra este pedido para efeito de recompensa de quem indicou.
+        try { await sb.rpc('processar_pedido_indicacao', { p_indicado_phone: user.phone }); }
+        catch (e) { console.warn('Erro ao processar pedido de indicação:', e); }
+
         // Tickets e Diamantes liberados pelo ADM ao confirmar pagamento
 
         // Atualizar dívida
@@ -2617,7 +2740,7 @@ async function confirmOrder() {
         // ===== TICKET: SIM ✅ =====
         roboEstado('sim');
 
-        cart = {}; creditDiscount = 0; cupomDesconto = 0; cupomId = null; cupomDescontoPct = 0; render();
+        cart = {}; creditDiscount = 0; cupomDesconto = 0; cupomId = null; cupomDescontoPct = 0; usarCoxinhasGratisAtivo = false; coxinhasGratisQtdUsada = 0; render();
         btn.disabled = false;
 
     } catch(err) {
@@ -2887,6 +3010,19 @@ function fecharPainelControle() {
                 padding:0;
                 box-shadow:0 6px 24px rgba(255,107,107,0.15);position:relative;overflow:hidden;aspect-ratio:1;">
                 <img src="./fotos/jogos.png" alt="Jogos" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:drop-shadow(0 4px 14px rgba(255,107,107,0.6));"/>
+            </div>
+
+            <!-- CARD: Convide e Ganhe 🎁 -->
+            <div onclick="window.location.href='./convite.html'"
+                ontouchstart="this.style.transform='scale(0.95)';this.style.boxShadow='0 2px 8px rgba(241,196,15,0.3)'"
+                ontouchend="this.style.transform='scale(1)';this.style.boxShadow='0 6px 24px rgba(241,196,15,0.15)'"
+                style="cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.15s,box-shadow 0.15s;
+                background:linear-gradient(145deg,#241a00,#332400);
+                border:1px solid rgba(241,196,15,0.3);border-radius:22px;
+                padding:0;box-shadow:0 6px 24px rgba(241,196,15,0.15);position:relative;overflow:hidden;aspect-ratio:1;
+                display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+                <span style="font-size:34px;filter:drop-shadow(0 4px 14px rgba(241,196,15,0.5));">🎁</span>
+                <span style="font-size:12px;font-weight:800;color:#f1c40f;text-align:center;line-height:1.2;padding:0 6px;">Convide<br>e Ganhe</span>
             </div>
 
             <!-- CARD: Tema -->
