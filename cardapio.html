@@ -761,41 +761,50 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Estado salvando */
-        .salvando-wrap {
-            padding: 40px 24px;
-            display: flex; flex-direction: column; align-items: center; gap: 20px;
-        }
-        .salvando-emoji {
-            font-size: 64px;
-            animation: salvandoPulse 0.9s ease-in-out infinite;
-        }
-        .salvando-texto {
-            font-size: 18px; font-weight: 800; color: white; text-align: center;
-        }
-        .salvando-sub {
-            font-size: 13px; color: rgba(255,255,255,0.45); font-weight: 600; text-align: center;
-            margin-top: -10px;
-        }
-        .salvando-barra-bg {
-            width: 100%; height: 4px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 2px; overflow: hidden;
-        }
-        .salvando-barra {
-            height: 100%; background: var(--theme-gradient);
-            border-radius: 2px;
-            animation: barraCarregar 2.5s ease forwards;
-        }
-
+        /* ===== ANIMAÇÃO SURREAL (pedido) ===== */
+        .sv-scene { padding: 22px 20px 26px; display: flex; flex-direction: column; align-items: center; gap: 0; }
+        .sv-eyebrow { color: rgba(255,255,255,.35); font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+        .sv-headline { font-size: 22px; font-weight: 900; color: white; text-align: center; line-height: 1.1; letter-spacing: -0.5px; }
+        .sv-headline span { color: #ffca55; }
+        .sv-orbit { height: 200px; width: 100%; position: relative; display: grid; place-items: center; margin: 10px 0 8px; }
+        .sv-glow { position:absolute;width:160px;height:160px;border-radius:50%;
+          background:radial-gradient(circle,rgba(255,181,69,.22),rgba(255,129,47,.06) 45%,transparent 70%);
+          animation:svPulse 2.3s infinite ease-in-out; }
+        .sv-ring { position:absolute;width:175px;height:175px;border:1px solid rgba(255,202,85,.16);
+          border-radius:50%;animation:svSpin 10s linear infinite; }
+        .sv-ring::before,.sv-ring::after { content:"";position:absolute;border-radius:50%;
+          background:#ffca55;box-shadow:0 0 12px #ffca55; }
+        .sv-ring::before { width:6px;height:6px;top:18px;left:36px; }
+        .sv-ring::after  { width:4px;height:4px;right:22px;bottom:30px; }
+        .sv-ring2 { position:absolute;width:132px;height:132px;border:1px dashed rgba(117,232,255,.18);
+          border-radius:50%;animation:svSpinR 8s linear infinite; }
+        .sv-food { position:relative;width:110px;height:110px;border-radius:32px;
+          display:grid;place-items:center;font-size:56px;
+          background:linear-gradient(145deg,#252a35,#11141c);
+          border:1px solid rgba(255,255,255,.13);
+          box-shadow:inset 0 1px rgba(255,255,255,.1),0 18px 45px rgba(0,0,0,.45);
+          animation:svFloat 2.6s ease-in-out infinite;
+          overflow:hidden; }
+        .sv-food img { width:80px;height:80px;object-fit:contain;border-radius:16px; }
+        .sv-food .sv-result { font-size:52px;line-height:1; }
+        .sv-food::after { content:"";position:absolute;inset:-8px;border-radius:38px;
+          border:1px solid rgba(255,202,85,.12);pointer-events:none; }
+        .sv-progress { height:4px;border-radius:20px;background:rgba(255,255,255,.07);overflow:hidden;width:100%; }
+        .sv-progress b { display:block;width:0;height:100%;border-radius:20px;
+          background:linear-gradient(90deg,#ffca55,#ff8f3d,#b8f36b);
+          box-shadow:0 0 12px rgba(255,185,70,.5);
+          transition:width .9s cubic-bezier(.2,.8,.2,1); }
+        .sv-status { display:flex;align-items:center;justify-content:space-between;margin-top:9px;font-size:11px;color:rgba(255,255,255,.5); }
+        .sv-status strong { color:white; }
         /* Erro */
-        .erro-wrap {
-            padding: 40px 24px;
-            display: flex; flex-direction: column; align-items: center; gap: 16px;
-        }
-        .erro-emoji { font-size: 64px; animation: roboNao 0.5s ease-in-out 3; }
-        .erro-titulo { font-size: 20px; font-weight: 900; color: white; text-align: center; }
-        .erro-sub { font-size: 13px; color: rgba(255,120,120,0.85); font-weight: 600; text-align: center; }
+        .erro-wrap { padding:32px 20px; display:flex;flex-direction:column;align-items:center;gap:14px; }
+        .erro-emoji { font-size:60px; }
+        .erro-titulo { font-size:18px;font-weight:900;color:white;text-align:center; }
+        .erro-sub { font-size:12px;color:rgba(255,120,120,.85);font-weight:600;text-align:center; }
+        @keyframes svSpin    { to { transform:rotate(360deg); } }
+        @keyframes svSpinR   { to { transform:rotate(-360deg); } }
+        @keyframes svPulse   { 50% { transform:scale(1.12);opacity:.75; } }
+        @keyframes svFloat   { 0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)} }
 
         @keyframes roboNao {
             0%,100% { transform: translateX(0); }
@@ -1257,13 +1266,17 @@
 ">
     <!-- Estado: Salvando -->
     <div id="estadoSalvando" class="ticket-card">
-        <div class="salvando-wrap">
-            <div class="salvando-emoji">🍗</div>
-            <div class="salvando-texto">Enviando pedido...</div>
-            <div class="salvando-sub">☁️ Aguarde um segundo!</div>
-            <div class="salvando-barra-bg">
-                <div class="salvando-barra" id="salvanBarra"></div>
+        <div class="sv-scene">
+            <div class="sv-eyebrow">enviando seu pedido</div>
+            <div class="sv-headline">Aguarde<br><span>um segundo.</span></div>
+            <div class="sv-orbit">
+                <div class="sv-glow"></div>
+                <div class="sv-ring"></div>
+                <div class="sv-ring2"></div>
+                <div class="sv-food" id="svFood"><img src="/fotos/assistente.png" alt=""></div>
             </div>
+            <div class="sv-progress"><b id="salvanBarra"></b></div>
+            <div class="sv-status"><span id="salvanStatus">Enviando...</span><strong id="salvanPercent">0%</strong></div>
         </div>
     </div>
 
@@ -1311,9 +1324,9 @@
     <!-- Estado: Erro -->
     <div id="estadoNao" class="ticket-card" style="display:none;">
         <div class="erro-wrap">
-            <div class="erro-emoji">😵</div>
+            <div class="erro-emoji">❌</div>
             <div class="erro-titulo">Não consegui salvar!</div>
-            <div class="erro-sub">Verifique sua internet e tente de novo.</div>
+            <div class="erro-sub" id="confirmSubErro">Verifique sua internet e tente de novo.</div>
         </div>
     </div>
 </div>
@@ -2592,14 +2605,46 @@ function roboEstado(estado) {
 
     if (estado === 'salvando') {
         eSalvando.style.display = 'block';
-        // Reinicia barra
+        // Reinicia barra + animação de progresso
         const b = document.getElementById('salvanBarra');
-        if (b) { b.style.animation = 'none'; void b.offsetWidth; b.style.animation = 'barraCarregar 2.5s ease forwards'; }
+        const pct = document.getElementById('salvanPercent');
+        const st  = document.getElementById('salvanStatus');
+        const food= document.getElementById('svFood');
+        if (food) food.innerHTML = '<img src="/fotos/assistente.png" alt="" style="width:80px;height:80px;object-fit:contain;border-radius:16px;">';
+        if (pct)  pct.textContent  = '0%';
+        if (st)   st.textContent   = 'Enviando...';
+        if (b) {
+            b.style.transition = 'none';
+            b.style.width = '0%';
+            void b.offsetWidth;
+            b.style.transition = 'width .9s cubic-bezier(.2,.8,.2,1)';
+            // Progresso simulado
+            setTimeout(()=>{ if(b){b.style.width='40%';if(pct)pct.textContent='40%';if(st)st.textContent='Registrando...'; } }, 400);
+            setTimeout(()=>{ if(b){b.style.width='75%';if(pct)pct.textContent='75%';if(st)st.textContent='Confirmando...'; } }, 1100);
+            setTimeout(()=>{ if(b){b.style.width='90%';if(pct)pct.textContent='90%';if(st)st.textContent='Quase pronto...'; } }, 1900);
+        }
     } else if (estado === 'sim') {
-        window.location.href = './itens.html';
+        // Completa barra e muda emoji antes de redirecionar
+        const b = document.getElementById('salvanBarra');
+        const pct = document.getElementById('salvanPercent');
+        const st  = document.getElementById('salvanStatus');
+        const food= document.getElementById('svFood');
+        eSalvando.style.display = 'block';
+        if (b)   { b.style.width='100%'; }
+        if (pct) pct.textContent = '100%';
+        if (st)  st.textContent  = 'Pedido confirmado!';
+        if (food){ food.style.animation='none'; food.innerHTML='<span class="sv-result">✅</span>'; }
+        setTimeout(()=>{ window.location.href = './itens.html'; }, 1000);
     } else if (estado === 'nao') {
-        eNao.style.display = 'block';
-        modal.classList.add('estado-nao');
+        // Muda emoji para ❌ antes de mostrar o card de erro
+        const food= document.getElementById('svFood');
+        eSalvando.style.display = 'block';
+        if (food){ food.style.animation='none'; food.innerHTML='<span class="sv-result">❌</span>'; }
+        setTimeout(()=>{
+            eSalvando.style.display = 'none';
+            eNao.style.display = 'block';
+            modal.classList.add('estado-nao');
+        }, 600);
     }
 }
 
