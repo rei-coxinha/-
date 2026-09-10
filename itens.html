@@ -507,11 +507,11 @@
         .ticket-card {
             background:var(--surface);
             border:1px solid var(--border);
-            border-radius:22px;
-            width:calc(100% - 24px);
-            max-width:360px;
+            border-radius:24px;
+            width:calc(100% - 48px);
+            max-width:340px;
             overflow:hidden;
-            animation:ticketEntrar 0.5s cubic-bezier(0.34,1.3,0.64,1) both;
+            animation:ticketEntrar 0.55s cubic-bezier(0.34,1.3,0.64,1) both;
             position:relative;
         }
         .ticket-topo {
@@ -556,30 +556,33 @@
         .salvando-barra { height:100%; background:linear-gradient(135deg,var(--amber),var(--orange)); border-radius:4px; animation:barraCarregar 2.5s ease forwards; }
 
         /* ===== ANIMAÇÃO SURREAL (pedido) — igual ao cardápio ===== */
-        .sv-scene { position:relative; z-index:2; height:100%; width:100%; padding: 40px 24px 32px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 0; }
-        .sv-eyebrow { color: rgba(255,255,255,.5); font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
-        .sv-headline { font-size: 24px; font-weight: 900; color: white; text-align: center; line-height: 1.15; letter-spacing: -0.5px; }
+        .sv-scene { padding: 22px 20px 26px; display: flex; flex-direction: column; align-items: center; gap: 0; }
+        .sv-eyebrow { color: rgba(255,255,255,.35); font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+        .sv-headline { font-size: 22px; font-weight: 900; color: white; text-align: center; line-height: 1.1; letter-spacing: -0.5px; }
         .sv-headline span { color: #ffca55; }
-        .sv-orbit { height: 160px; width: 100%; position: relative; display: grid; place-items: center; margin: 10px 0 8px; }
-        .sv-glow { position:absolute;width:140px;height:140px;border-radius:50%;
+        .sv-orbit { height: 200px; width: 100%; position: relative; display: grid; place-items: center; margin: 10px 0 8px; }
+        .sv-glow { position:absolute;width:160px;height:160px;border-radius:50%;
           background:radial-gradient(circle,rgba(255,181,69,.22),rgba(255,129,47,.06) 45%,transparent 70%);
           animation:svPulse 2.3s infinite ease-in-out; }
-        .sv-ring { position:absolute;width:150px;height:150px;border:1px solid rgba(255,202,85,.16);
+        .sv-ring { position:absolute;width:175px;height:175px;border:1px solid rgba(255,202,85,.16);
           border-radius:50%;animation:svSpin 10s linear infinite; }
         .sv-ring::before,.sv-ring::after { content:"";position:absolute;border-radius:50%;
           background:#ffca55;box-shadow:0 0 12px #ffca55; }
-        .sv-ring::before { width:5px;height:5px;top:15px;left:32px; }
-        .sv-ring::after  { width:3px;height:3px;right:18px;bottom:25px; }
-        .sv-ring2 { position:absolute;width:110px;height:110px;border:1px dashed rgba(117,232,255,.18);
+        .sv-ring::before { width:6px;height:6px;top:18px;left:36px; }
+        .sv-ring::after  { width:4px;height:4px;right:22px;bottom:30px; }
+        .sv-ring2 { position:absolute;width:132px;height:132px;border:1px dashed rgba(117,232,255,.18);
           border-radius:50%;animation:svSpinR 8s linear infinite; }
-        .sv-food { position:absolute;width:100%;height:240px;
-          z-index:0; border-radius:0; overflow:hidden;
-          background:#0a0a0b; animation:none; top:46%; left:0; transform:translateY(-50%); }
-        .sv-food img { width:100%;height:240px;object-fit:cover;object-position:center 25%;border-radius:0; }
+        .sv-food { position:relative;width:110px;height:110px;border-radius:32px;
+          display:grid;place-items:center;font-size:56px;
+          background:linear-gradient(145deg,#252a35,#11141c);
+          border:1px solid rgba(255,255,255,.13);
+          box-shadow:inset 0 1px rgba(255,255,255,.1),0 18px 45px rgba(0,0,0,.45);
+          animation:svFloat 2.6s ease-in-out infinite;
+          overflow:hidden; }
+        .sv-food img { width:100%;height:100%;object-fit:cover;border-radius:32px; }
         .sv-food .sv-result { font-size:52px;line-height:1; }
-        .sv-food::after { content:"";position:absolute;inset:0;border-radius:0;height:240px;
-          background:linear-gradient(180deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.12) 32%, rgba(0,0,0,0.18) 58%, rgba(0,0,0,0.9) 100%);
-          pointer-events:none; }
+        .sv-food::after { content:"";position:absolute;inset:-8px;border-radius:38px;
+          border:1px solid rgba(255,202,85,.12);pointer-events:none; }
         .sv-progress { height:4px;border-radius:20px;background:rgba(255,255,255,.07);overflow:hidden;width:100%; }
         .sv-progress b { display:block;width:0;height:100%;border-radius:20px;
           background:linear-gradient(90deg,#ffca55,#ff8f3d,#b8f36b);
@@ -587,15 +590,6 @@
           transition:width .9s cubic-bezier(.2,.8,.2,1); }
         .sv-status { display:flex;align-items:center;justify-content:space-between;margin-top:9px;font-size:11px;color:rgba(255,255,255,.5); }
         .sv-status strong { color:white; }
-
-        #estadoSalvando {
-            position:fixed; inset:0;
-            width:calc(100% - 24px); height:auto; max-width:360px;
-            max-height:none; border-radius:22px; border:1px solid var(--border);
-            overflow:hidden; background:var(--surface);
-            left:50%; top:50%; transform:translate(-50%, -50%);
-        }
-        #estadoSalvando .sv-orbit { display:none; }
 
         /* Erro */
         .erro-wrap { padding:28px 20px; display:flex; flex-direction:column; align-items:center; gap:14px; }
@@ -750,16 +744,17 @@
 
         <!-- Estado: Salvando -->
         <div id="estadoSalvando" class="ticket-card">
-            <div class="sv-food" id="svFood"><img src="/-/fotos/assistente.png" alt=""></div>
             <div class="sv-scene">
-                <div>
-                    <div class="sv-eyebrow">enviando seu pedido</div>
-                    <div class="sv-headline">Aguarde<br><span>um segundo.</span></div>
+                <div class="sv-eyebrow">enviando seu pedido</div>
+                <div class="sv-headline">Aguarde<br><span>um segundo.</span></div>
+                <div class="sv-orbit">
+                    <div class="sv-glow"></div>
+                    <div class="sv-ring"></div>
+                    <div class="sv-ring2"></div>
+                    <div class="sv-food" id="svFood"><img src="/-/fotos/assistente.png" alt=""></div>
                 </div>
-                <div style="width:100%;">
-                    <div class="sv-progress"><b id="confirmBarra"></b></div>
-                    <div class="sv-status"><span id="confirmStatus">Enviando...</span><strong id="confirmPercent">0%</strong></div>
-                </div>
+                <div class="sv-progress"><b id="confirmBarra"></b></div>
+                <div class="sv-status"><span id="confirmStatus">Enviando...</span><strong id="confirmPercent">0%</strong></div>
             </div>
         </div>
 
