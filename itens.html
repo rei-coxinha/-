@@ -1755,7 +1755,8 @@ async function fazerPedido() {
             'adm',
             null,
             '🚨 NOVO PEDIDO',
-            `👤 Cliente: ${user.name}\n💰 Valor: R$ ${finalTotal.toFixed(2).replace('.', ',')}`
+            `👤 Cliente: ${user.name}\n💰 Valor: R$ ${finalTotal.toFixed(2).replace('.', ',')}`,
+            `https://wa.me/55${user.phone}`
         );
 
         // Sucesso — após a animação, ir para a tela com a lista de todos os pedidos
@@ -1880,33 +1881,6 @@ document.getElementById('userName').addEventListener('keydown', function(e) {
 </script>
 <!-- ===== FIM POPUP INSTALAÇÃO PWA ===== -->
 
-<!-- ===== BOTÃO DE TESTE (REMOVER DEPOIS) ===== -->
-<div id="btnTesteWrap" style="position:fixed;bottom:32px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-    <button onclick="testeAnimacao('salvando')" style="padding:10px 16px;background:#f59e0b;color:#000;border:none;border-radius:12px;font-size:13px;font-weight:800;cursor:pointer;">▶ Salvando</button>
-    <button onclick="testeAnimacao('sim')"      style="padding:10px 16px;background:#22c55e;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:800;cursor:pointer;">✓ Sucesso</button>
-    <button onclick="testeAnimacao('nao')"      style="padding:10px 16px;background:#ef4444;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:800;cursor:pointer;">✕ Erro</button>
-    <button onclick="testeFechar()"             style="padding:10px 16px;background:#333;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:800;cursor:pointer;">✕ Fechar</button>
-</div>
-<script>
-function testeAnimacao(estado) {
-    mostrarTela('telaConfirm');
-    confirmarEstado(estado);
-    // Esconde os botões de teste enquanto a animação está visível
-    document.getElementById('btnTesteWrap').style.display = 'none';
-}
-function testeFechar() {
-    ['telaConfirm','telaSemPedido','telaErroConexao'].forEach(t => {
-        const el = document.getElementById(t);
-        el.classList.add('oculta');
-        el.classList.remove('ativo');
-    });
-    document.getElementById('btnTesteWrap').style.display = 'flex';
-}
-// Reexibe os botões ao fechar a tela manualmente
-document.getElementById('telaConfirm').addEventListener('click', function(e) {
-    if (e.target === this) testeFechar();
-});
-</script>
-<!-- ===== FIM BOTÃO DE TESTE ===== -->
+
 
 </html>

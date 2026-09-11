@@ -2737,7 +2737,8 @@ async function confirmOrder() {
             'adm',
             null,
             '🚨 NOVO PEDIDO',
-            `👤 Cliente: ${user.name}\n💰 Valor: R$ ${finalTotal.toFixed(2).replace('.', ',')}`
+            `👤 Cliente: ${user.name}\n💰 Valor: R$ ${finalTotal.toFixed(2).replace('.', ',')}`,
+            `https://wa.me/55${user.phone}`
         );
 
         // ===== SOM + TOAST DE CONFIRMAÇÃO =====
