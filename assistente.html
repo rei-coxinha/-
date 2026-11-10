@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Atendimento — O Rei da Coxinha</title>
+<meta name="theme-color" content="#0B141A">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body { background: #0B141A; font-family: Roboto, 'Segoe UI', -apple-system, 'Helvetica Neue', Arial, sans-serif; display: flex; justify-content: center; align-items: center; }
+#app { width: 100%; max-width: 480px; height: 100dvh; display: flex; flex-direction: column; position: relative; background: #0B141A; overflow: hidden; }
+/* ── LISTA DE CONVERSAS ── */
+#screen-list { position:absolute; inset:0; display:flex; flex-direction:column; transition: transform .22s ease; z-index: 2; background:#0B141A; }
+#screen-list.hidden { transform: translateX(-100%); pointer-events: none; }
+#list-header { background:#0B141A; padding:10px 12px 6px 16px; flex-shrink:0; }
+#list-header-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; min-height:44px; }
+#list-title { color:#21C063; font-size:27px; font-weight:700; letter-spacing:-.3px; }
+#list-header-actions { display:flex; gap:2px; }
+.icon-btn { width:40px; height:40px; border-radius:50%; border:none; background:transparent; color:#E9EDEF; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: background .15s; }
+.icon-btn:active { background:#1F2C34; }
+.icon-btn svg { width:22px; height:22px; }
+.icon-btn.spin svg { animation: spin .6s linear; }
+@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+#search-wrap { background:#1F2C34; border-radius:24px; display:flex; align-items:center; gap:14px; padding:0 18px; height:48px; margin-right:4px; }
+#search-wrap svg { width:20px; height:20px; color:#8696A0; flex-shrink:0; }
+#search-input { flex:1; background:transparent; border:none; outline:none; color:#E9EDEF; font-size:16px; font-family:inherit; }
+#search-input::placeholder { color:#8696A0; }
+#client-list { flex:1; overflow-y:auto; padding-top:6px; }
+#client-list::-webkit-scrollbar, #messages::-webkit-scrollbar { width:4px; }
+#client-list::-webkit-scrollbar-thumb, #messages::-webkit-scrollbar-thumb { background:#2A3942; border-radius:4px; }
+.client-row { display:flex; align-items:center; gap:14px; padding:10px 14px 10px 16px; cursor:pointer; }
+.client-row:active { background:#111B21; }
+.client-avatar, .chat-header-avatar { border-radius:50%; flex-shrink:0; background-color:#6B7C85; background-repeat:no-repeat; background-position:center bottom; background-size:100% 100%; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='15' r='7' fill='%23DFE5E7'/%3E%3Cpath d='M5 40c0-9 6.5-14 15-14s15 5 15 14z' fill='%23DFE5E7'/%3E%3C/svg%3E"); }
+.client-avatar { width:52px; height:52px; }
+.client-mid { flex:1; min-width:0; }
+.client-top-line { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.client-name { color:#E9EDEF; font-size:17px; font-weight:400; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.client-time { color:#8696A0; font-size:12px; flex-shrink:0; }
+.client-preview { color:#8696A0; font-size:14.5px; margin-top:2px; white-space:nowrap; overflow:hidden; display:flex; align-items:center; gap:3px; }
+.client-preview > span:last-child { overflow:hidden; text-overflow:ellipsis; }
+.pv-ico { display:inline-flex; flex-shrink:0; }
+.pv-ico svg { width:16px; height:16px; }
+.tick { width:16px; height:15px; color:#53BDEB; flex-shrink:0; }
+.client-count { color:#8696A0; font-size:11px; flex-shrink:0; min-width:14px; text-align:right; }
+#empty-state, #loading-state, #error-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:40px 30px; text-align:center; }
+#empty-state { display:none; }
+#error-state { display:none; }
+.state-icon { font-size:38px; opacity:.6; }
+.state-title { color:#E9EDEF; font-size:16px; font-weight:500; }
+.state-sub { color:#8696A0; font-size:14px; line-height:1.5; }
+.state-btn { margin-top:6px; background:#00A884; color:#0B141A; font-weight:500; font-size:14.5px; border:none; border-radius:20px; padding:10px 22px; cursor:pointer; }
+.spinner { width:26px; height:26px; border-radius:50%; border:3px solid #2A3942; border-top-color:#00A884; animation: spin .7s linear infinite; }
+/* ── CHAT ── */
+#screen-chat { position:absolute; inset:0; display:flex; flex-direction:column; transform: translateX(100%); transition: transform .22s ease; z-index:3; background:#0B141A; }
+#screen-chat.visible { transform: translateX(0); }
+#chat-header { background:#1F2C34; padding:8px 6px 8px 4px; display:flex; align-items:center; gap:4px; flex-shrink:0; z-index:10; }
+#chat-back { background:none; border:none; color:#E9EDEF; cursor:pointer; padding:6px 4px; display:flex; }
+#chat-back svg { width:24px; height:24px; }
+.chat-header-avatar { width:40px; height:40px; margin-right:6px; }
+.chat-header-info { flex:1; min-width:0; }
+.chat-header-name { color:#E9EDEF; font-weight:500; font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chat-header-sub { color:#8696A0; font-size:13px; }
+#wallpaper { position:absolute; inset:0; background-color:#0B141A; background-size:120px 120px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23fff' stroke-opacity='.05' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='20' cy='22' r='7'/%3E%3Cpath d='M78 12l4 8 9 1-6.5 6 1.7 9-8.2-4.3-8.2 4.3 1.7-9-6.5-6 9-1z'/%3E%3Cpath d='M88 70a9 9 0 1 1 5 8l-8 3 3-7z'/%3E%3Cpath d='M20 84c-6-5-9-9-9-13a6 6 0 0 1 9-4 6 6 0 0 1 9 4c0 4-3 8-9 13z'/%3E%3Cpath d='M50 100h22v12H50zM55 100v-5h12v5'/%3E%3C/g%3E%3C/svg%3E"); pointer-events:none; z-index:0; }
+#messages { flex:1; overflow-y:auto; padding:8px 0 14px; display:flex; flex-direction:column; position:relative; z-index:1; }
+.date-pill { display:flex; justify-content:center; margin:10px 0 6px; }
+.date-pill span { background:#182229; border-radius:8px; padding:5px 11px; color:#8696A0; font-size:12.5px; text-transform:uppercase; box-shadow:0 1px .5px rgba(11,20,26,.4); }
+/* Cliente = mensagem recebida (esquerda). Assistente/bot = mensagem enviada (direita). */
+.msg-row { display:flex; margin-top:2px; padding:0 12px; }
+.msg-row.first { margin-top:8px; }
+.msg-row.user { justify-content:flex-start; }
+.msg-row.assistant { justify-content:flex-end; }
+.bubble { position:relative; max-width:85%; padding:6px 7px 6px 9px; border-radius:8px; box-shadow:0 1px .5px rgba(11,20,26,.4); word-wrap:break-word; }
+.bubble.user { background:#202C33; }
+.bubble.assistant { background:#005C4B; }
+.msg-row.first .bubble.user { border-top-left-radius:0; }
+.msg-row.first .bubble.assistant { border-top-right-radius:0; }
+.msg-row.first .bubble::before { content:""; position:absolute; top:0; border-style:solid; }
+.msg-row.first .bubble.user::before { left:-8px; border-width:0 8px 8px 0; border-color:transparent #202C33 transparent transparent; }
+.msg-row.first .bubble.assistant::before { right:-8px; border-width:8px 8px 0 0; border-color:#005C4B transparent transparent transparent; }
+.bubble-text { color:#E9EDEF; font-size:14.2px; line-height:19px; word-break:break-word; white-space:pre-wrap; }
+.bubble-text::after { content:""; display:block; clear:both; }
+.bubble-time { float:right; margin:6px 0 -4px 10px; font-size:11px; line-height:15px; color:#8696A0; display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
+.bubble.assistant .bubble-time { color:#99BEB7; }
+.bubble-time .tick { width:16px; height:15px; }
+.bubble.media { padding:3px; }
+.bubble.media .bubble-text { padding:4px 4px 0 6px; }
+.media-wrap { position:relative; line-height:0; }
+.media-wrap::after { content:""; position:absolute; left:0; right:0; bottom:0; height:36px; border-radius:0 0 6px 6px; background:linear-gradient(transparent, rgba(0,0,0,.45)); pointer-events:none; }
+.media-wrap .bubble-time { position:absolute; right:8px; bottom:5px; float:none; margin:0; color:#fff; z-index:1; text-shadow:0 0 3px rgba(0,0,0,.5); }
+.bubble-img { display:block; width:260px; max-width:100%; border-radius:6px; cursor:pointer; }
+.bubble-pdf { display:flex; align-items:center; gap:10px; background:rgba(11,20,26,.28); border-radius:6px; padding:10px 12px; margin-bottom:2px; text-decoration:none; color:#E9EDEF; font-size:14px; }
+.bubble-pdf svg { width:22px; height:22px; color:#F15C6D; flex-shrink:0; }
+.bubble-audio { display:block; width:240px; max-width:100%; height:40px; margin-bottom:4px; }
+/* ── DIÁLOGOS ── */
+#cfg-overlay, #rename-overlay { display:none; position:fixed; inset:0; background:rgba(11,20,26,.75); justify-content:center; align-items:center; padding:24px; }
+#cfg-overlay { z-index:100; }
+#rename-overlay { z-index:110; }
+#cfg-overlay.open, #rename-overlay.open { display:flex; }
+#cfg-box, #rename-box { background:#233138; border-radius:16px; width:100%; max-width:400px; padding:24px 24px 12px; }
+#cfg-box h2, #rename-box h2 { color:#E9EDEF; font-size:18px; font-weight:500; margin-bottom:8px; }
+#cfg-box p { color:#8696A0; font-size:14px; margin-bottom:16px; line-height:1.45; }
+#rename-phone-label { color:#8696A0; font-size:14px; margin-bottom:16px; }
+.cfg-label { color:#00A884; font-size:12.5px; font-weight:500; margin-bottom:2px; display:block; }
+.cfg-input { width:100%; background:transparent; border:none; border-bottom:2px solid #00A884; border-radius:0; padding:8px 2px; color:#E9EDEF; font-size:16px; font-family:inherit; outline:none; margin-bottom:18px; }
+.cfg-btns { display:flex; justify-content:flex-end; gap:2px; margin-top:4px; }
+.cfg-btns button { padding:10px 14px; border:none; border-radius:20px; background:transparent; color:#00A884; font-weight:500; font-size:14.5px; cursor:pointer; }
+.cfg-btns button:active { background:rgba(0,168,132,.15); }
+.cfg-btns button:disabled { opacity:.5; }
+#cfg-error, #rename-error { color:#F15C6D; font-size:13px; margin:-8px 0 12px; display:none; }
+#lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:150; justify-content:center; align-items:center; padding:20px; }
+#lightbox.open { display:flex; }
+#lightbox img { max-width:100%; max-height:100%; border-radius:6px; }
+.edit-pencil { width:36px; height:36px; border-radius:50%; border:none; background:transparent; color:#8696A0; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+.edit-pencil:active { background:#1F2C34; color:#E9EDEF; }
+.edit-pencil svg { width:18px; height:18px; }
+#chat-header .edit-pencil { color:#E9EDEF; }
+
+/* ── VISUAL PROFISSIONAL + ENVIO ── */
+#brand{display:flex;flex-direction:column;line-height:1.1}#list-title{font-size:24px}#brand-sub{color:#8696A0;font-size:12px;letter-spacing:.4px;margin-top:3px}
+#list-header{border-bottom:1px solid #1A252C;padding-bottom:10px}
+.client-row{border-bottom:1px solid #131D23}.client-row:hover{background:#111B21}
+#chat-header{border-bottom:1px solid #26343C}
+#chat-placeholder{display:none;position:absolute;inset:0;z-index:2;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:30px}
+#window-bar{position:relative;z-index:5;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#111B21;border-top:1px solid #26343C;font-size:12.5px;color:#8696A0;flex-shrink:0}
+#window-text{flex:1}#window-dot{width:9px;height:9px;border-radius:50%;background:#21C063;flex-shrink:0}
+#window-bar.closed #window-dot{background:#F15C6D}#window-bar.closed #window-text{color:#F6A5AE}
+#btn-templates{background:transparent;border:1px solid #00A884;color:#00A884;border-radius:16px;padding:5px 12px;font-size:12.5px;font-weight:500;cursor:pointer}
+#btn-templates:active{background:rgba(0,168,132,.15)}
+#composer{position:relative;z-index:5;display:flex;align-items:flex-end;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:#0B141A;flex-shrink:0}
+#msg-input{flex:1;resize:none;max-height:120px;background:#1F2C34;border:none;outline:none;border-radius:22px;padding:11px 16px;color:#E9EDEF;font-size:15.5px;font-family:inherit;line-height:20px}
+#msg-input:disabled{opacity:.55}#msg-input::placeholder{color:#8696A0}
+#btn-send{width:46px;height:46px;border-radius:50%;border:none;background:#00A884;color:#0B141A;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+#btn-send svg{width:22px;height:22px}#btn-send:disabled{opacity:.45}
+#tpl-overlay{display:none;position:fixed;inset:0;background:rgba(11,20,26,.75);justify-content:center;align-items:center;padding:20px;z-index:120}#tpl-overlay.open{display:flex}
+#tpl-box{background:#233138;border-radius:16px;width:100%;max-width:420px;max-height:92dvh;overflow-y:auto;padding:22px 22px 12px}
+#tpl-box h2{color:#E9EDEF;font-size:18px;font-weight:500;margin-bottom:8px}#tpl-box p{color:#8696A0;font-size:13.5px;margin-bottom:14px;line-height:1.45}
+#tpl-box select.cfg-input{background:#233138}#tpl-vars .cfg-input{margin-bottom:8px}
+#tpl-preview{background:#005C4B;color:#E9EDEF;border-radius:8px;padding:9px 11px;font-size:14px;line-height:19px;white-space:pre-wrap;margin:6px 0 12px}
+#tpl-error{color:#F15C6D;font-size:13px;margin:0 0 10px;display:none}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:#1F2C34;color:#E9EDEF;border-radius:10px;padding:10px 16px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:200;max-width:90%;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}#toast.err{background:#5A1E26}
+@media (min-width:900px){
+#app{max-width:1200px;flex-direction:row;border-left:1px solid #1A252C;border-right:1px solid #1A252C}
+#screen-list{right:auto;width:380px;border-right:1px solid #1A252C}#screen-list.hidden{transform:none;pointer-events:auto}
+#screen-chat{left:380px;transform:none}#chat-back{display:none}
+#screen-chat:not(.visible) #chat-header,#screen-chat:not(.visible) #messages,#screen-chat:not(.visible) #window-bar,#screen-chat:not(.visible) #composer{display:none}
+#screen-chat:not(.visible) #chat-placeholder{display:flex}}
+#ia-filter{display:flex;gap:8px;margin:10px 4px 0 0}#ia-filter button{border:none;border-radius:16px;padding:6px 13px;background:#1F2C34;color:#8696A0;font-size:13px;cursor:pointer}#ia-filter button.on{background:#0A3D33;color:#21C063}
+.ia-badge{font-size:10.5px;font-weight:700;border-radius:8px;padding:2px 6px;flex-shrink:0}.ia-badge.on{background:#0A3D33;color:#21C063}.ia-badge.off{background:#4A1F26;color:#F6A5AE}
+#btn-ia{border:none;border-radius:14px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer;margin-right:2px;flex-shrink:0}#btn-ia.on{background:#0A3D33;color:#21C063}#btn-ia.off{background:#4A1F26;color:#F6A5AE}
+</style>
+</head>
+<body>
+<div id="app">
+<!-- ===================== LISTA DE CLIENTES ===================== -->
+<div id="screen-list">
+<div id="list-header">
+<div id="list-header-top">
+<div id="brand"><div id="list-title">Atendimento</div><div id="brand-sub">O Rei da Coxinha</div></div>
+<div id="list-header-actions">
+<button class="icon-btn" id="btn-refresh" title="Atualizar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+</button>
+<button class="icon-btn" id="btn-gear" title="Configurar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+</button>
+</div>
+</div>
+<div id="search-wrap">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+<input id="search-input" placeholder="Pesquisar">
+</div>
+<div id="ia-filter"><button type="button" data-f="todas" class="on">Todas</button><button type="button" data-f="on">IA ligada</button><button type="button" data-f="off">IA desligada</button></div>
+</div>
+<div id="loading-state">
+<div class="spinner"></div>
+<div class="state-sub">Carregando conversas…</div>
+</div>
+<div id="error-state">
+<div class="state-icon">⚠️</div>
+<div class="state-title">Não consegui carregar</div>
+<div class="state-sub" id="error-msg">Confira a URL e a chave do Supabase.</div>
+<button class="state-btn" id="btn-error-cfg">Abrir configuração</button>
+</div>
+<div id="empty-state">
+<div class="state-icon">💬</div>
+<div class="state-title">Nenhuma conversa ainda</div>
+<div class="state-sub">Assim que um cliente mandar mensagem pro bot, ela aparece aqui.</div>
+</div>
+<div id="client-list" style="display:none"></div>
+</div>
+<!-- ===================== CHAT ===================== -->
+<div id="screen-chat">
+<div id="chat-header">
+<button id="chat-back">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+</button>
+<div class="chat-header-avatar" id="chat-avatar"></div>
+<div class="chat-header-info">
+<div class="chat-header-name" id="chat-name">—</div>
+<div class="chat-header-sub" id="chat-sub">—</div>
+</div>
+<button id="btn-ia" type="button" title="Ligar/desligar respostas da IA">IA</button>
+<button class="edit-pencil" id="chat-edit-pencil" title="Editar contato">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+</button>
+<button class="icon-btn" id="btn-refresh-chat" title="Atualizar">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+</button>
+</div>
+<div id="wallpaper"></div>
+<div id="chat-placeholder"><div class="state-icon">💬</div><div class="state-title">Atendimento Rei da Coxinha</div><div class="state-sub">Selecione uma conversa para começar.</div></div>
+<div id="messages"></div>
+<div id="window-bar" class="closed"><span id="window-dot"></span><span id="window-text">—</span><button id="btn-templates" type="button">Enviar modelo</button></div>
+<div id="composer"><textarea id="msg-input" rows="1" placeholder="Mensagem" maxlength="4000"></textarea><button id="btn-send" type="button" title="Enviar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button></div>
+</div>
+</div>
+<!-- ===================== MODAL CONFIGURAÇÃO ===================== -->
+<div id="cfg-overlay">
+<div id="cfg-box">
+<h2>Configurações</h2>
+<p>Dados salvos só neste navegador. Para enviar mensagens, preencha a URL da função e a chave do painel.</p>
+<div id="cfg-error"></div>
+<span class="cfg-label">Supabase URL</span>
+<input class="cfg-input" id="cfg-url" placeholder="https://xxxxxxxx.supabase.co">
+<span class="cfg-label">Anon key</span>
+<input class="cfg-input" id="cfg-key" placeholder="eyJhbGciOi...">
+<span class="cfg-label">URL da função do WhatsApp (Edge Function)</span>
+<input class="cfg-input" id="cfg-fn" placeholder="https://xxxx.supabase.co/functions/v1/nome-da-funcao">
+<span class="cfg-label">Chave do painel (ADMIN_TOKEN)</span>
+<input class="cfg-input" id="cfg-admin" type="password" placeholder="o valor do secret ADMIN_TOKEN">
+<div class="cfg-btns">
+<button id="cfg-cancel">Cancelar</button>
+<button id="cfg-save">Salvar e carregar</button>
+</div>
+</div>
+</div>
+<!-- ===================== MODAL EDITAR CONTATO ===================== -->
+<div id="rename-overlay">
+<div id="rename-box">
+<h2>Editar contato</h2>
+<p id="rename-phone-label">—</p>
+<div id="rename-error"></div>
+<span class="cfg-label">Nome</span>
+<input class="cfg-input" id="rename-input" placeholder="Nome do cliente" maxlength="80">
+<div class="cfg-btns">
+<button id="rename-cancel">Cancelar</button>
+<button id="rename-save">Salvar</button>
+</div>
+</div>
+</div>
+<div id="tpl-overlay"><div id="tpl-box"><h2>Enviar modelo aprovado</h2><p>Fora da janela de 24h só é possível enviar modelos aprovados pela Meta.</p><div id="tpl-error"></div><span class="cfg-label">Modelo</span><select class="cfg-input" id="tpl-select"></select><div id="tpl-vars"></div><span class="cfg-label">Pré-visualização</span><div id="tpl-preview">—</div><div class="cfg-btns"><button id="tpl-cancel" type="button">Cancelar</button><button id="tpl-send" type="button">Enviar</button></div></div></div>
+<div id="toast"></div>
+<div id="lightbox"><img id="lightbox-img" src="" alt="mídia ampliada"></div>
+<script>
+(function () {
+"use strict";
+var STORAGE_KEY = "reicoxinha_viewer_config";
+var PADRAO = {
+url: "https://vpeyqgijajywgswmezlh.supabase.co",
+key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZXlxZ2lqYWp5d2dzd21lemxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNTM1MDIsImV4cCI6MjA4NjgyOTUwMn0.LA5Cbof7IKWAA7l8YbCuPzANpCy0rX_Dro4l9fcDgoQ"
+};
+PADRAO.fnUrl = "https://vpeyqgijajywgswmezlh.supabase.co/functions/v1/whatsapp";
+PADRAO.adminKey = "85641421";
+var cfg = { url: PADRAO.url, key: PADRAO.key, fnUrl: PADRAO.fnUrl, adminKey: PADRAO.adminKey };
+var clientesMap = {};   // phone -> nome (da tabela clientes, se existir)
+var groupsByPhone = {}; // phone -> { lastTime, lastRole, lastMsg, count }
+var currentPhone = null;
+var iaMap = {};        // phone -> false quando a IA está desligada para o cliente
+var filtroIA = "todas";
+// ---------- helpers ----------
+function carregarConfig() {
+try {
+var raw = localStorage.getItem(STORAGE_KEY);
+if (raw) {
+var salvo = JSON.parse(raw);
+if (salvo && salvo.url && salvo.key) cfg = Object.assign(cfg, salvo);
+if (!cfg.fnUrl) cfg.fnUrl = PADRAO.fnUrl;
+if (!cfg.adminKey) cfg.adminKey = PADRAO.adminKey;
+}
+} catch (e) {}
+}
+function salvarConfig() {
+localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+}
+function headers() {
+return { apikey: cfg.key, Authorization: "Bearer " + cfg.key, "Content-Type": "application/json" };
+}
+function formatarTelefone(numero) {
+var n = String(numero || "").replace(/\D/g, "");
+if (n.length === 11) return "(" + n.slice(0, 2) + ") " + n.slice(2, 7) + "-" + n.slice(7);
+if (n.length === 10) return "(" + n.slice(0, 2) + ") " + n.slice(2, 6) + "-" + n.slice(6);
+return n;
+}
+function iniciais(nome) {
+if (!nome) return "?";
+return nome.trim().charAt(0).toUpperCase();
+}
+function horaCurta(iso) {
+var d = new Date(iso);
+return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+function dataLabel(iso) {
+var d = new Date(iso);
+var hoje = new Date();
+var ontem = new Date();
+ontem.setDate(hoje.getDate() - 1);
+var mesmoDia = function (a, b) { return a.toDateString() === b.toDateString(); };
+if (mesmoDia(d, hoje)) return "Hoje";
+if (mesmoDia(d, ontem)) return "Ontem";
+return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+function listaLabel(iso) {
+var d = new Date(iso), hoje = new Date();
+if (d.toDateString() === hoje.toDateString()) {
+return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+var dias = Math.round((new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+if (dias === 1) return "Ontem";
+if (dias > 1 && dias < 7) return d.toLocaleDateString("pt-BR", { weekday: "long" });
+return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+function escapeHtml(s) {
+return String(s || "").replace(/[&<>"']/g, function (c) {
+return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+});
+}
+// ---------- visual WhatsApp: ticks e prévia de mídia ----------
+var TICK = '<svg class="tick" viewBox="0 0 16 15"><path fill="currentColor" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/></svg>';
+var SV = function (d) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>'; };
+var ICONES = {
+"foto": SV('<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'),
+"áudio": SV('<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/>'),
+"vídeo": SV('<path d="m22 8-6 4 6 4z"/><rect x="2" y="6" width="14" height="12" rx="2"/>'),
+"pdf": SV('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>')
+};
+ICONES["arquivo"] = ICONES["pdf"]; ICONES["comprovante"] = ICONES["pdf"];
+var NOMES = { "foto": "Foto", "áudio": "Áudio", "vídeo": "Vídeo", "pdf": "PDF", "arquivo": "Documento", "comprovante": "Comprovante" };
+function previewHtml(g) {
+var t = String(g.lastMsg || "").trim();
+var tick = g.lastRole === "user" ? "" : TICK;
+var mm = t.match(/^\((foto|pdf|áudio|vídeo|arquivo|comprovante)\)/i);
+if (mm) {
+var k = mm[1].toLowerCase();
+return tick + '<span class="pv-ico">' + ICONES[k] + '</span><span>' + NOMES[k] + '</span>';
+}
+return tick + '<span>' + escapeHtml(t.replace(/\n/g, " ").slice(0, 60)) + '</span>';
+}
+// ---------- config modal ----------
+var cfgOverlay = document.getElementById("cfg-overlay");
+var cfgUrl = document.getElementById("cfg-url");
+var cfgKey = document.getElementById("cfg-key");
+var cfgError = document.getElementById("cfg-error");
+function abrirConfig() {
+cfgUrl.value = cfg.url || "";
+cfgKey.value = cfg.key || "";
+document.getElementById("cfg-fn").value = cfg.fnUrl || "";
+document.getElementById("cfg-admin").value = cfg.adminKey || "";
+cfgError.style.display = "none";
+cfgOverlay.classList.add("open");
+}
+function fecharConfig() { cfgOverlay.classList.remove("open"); }
+document.getElementById("btn-gear").onclick = abrirConfig;
+document.getElementById("btn-error-cfg").onclick = abrirConfig;
+document.getElementById("cfg-cancel").onclick = fecharConfig;
+document.getElementById("cfg-save").onclick = function () {
+var url = cfgUrl.value.trim().replace(/\/+$/, "");
+var key = cfgKey.value.trim();
+if (!url || !key || !/^https?:\/\//.test(url)) {
+cfgError.textContent = "Preenche a URL (começando com https://) e a anon key.";
+cfgError.style.display = "block";
+return;
+}
+cfg.url = url;
+cfg.key = key;
+cfg.fnUrl = document.getElementById("cfg-fn").value.trim();
+cfg.adminKey = document.getElementById("cfg-admin").value.trim();
+salvarConfig();
+fecharConfig();
+carregarClientes();
+};
+// ---------- editar contato (nome) ----------
+var renameOverlay = document.getElementById("rename-overlay");
+var renameInput = document.getElementById("rename-input");
+var renamePhoneLabel = document.getElementById("rename-phone-label");
+var renameError = document.getElementById("rename-error");
+var renamePhoneAtual = null;
+function abrirRename(phone) {
+renamePhoneAtual = phone;
+renamePhoneLabel.textContent = formatarTelefone(phone);
+renameInput.value = clientesMap[phone] || "";
+renameError.style.display = "none";
+renameOverlay.classList.add("open");
+setTimeout(function () { renameInput.focus(); }, 50);
+}
+function fecharRename() { renameOverlay.classList.remove("open"); }
+document.getElementById("rename-cancel").onclick = fecharRename;
+document.getElementById("chat-edit-pencil").onclick = function () {
+if (currentPhone) abrirRename(currentPhone);
+};
+document.getElementById("rename-save").onclick = function () {
+var nome = renameInput.value.trim();
+if (!nome) {
+renameError.textContent = "Digita um nome.";
+renameError.style.display = "block";
+return;
+}
+var phone = renamePhoneAtual;
+var jaTemCliente = Object.prototype.hasOwnProperty.call(clientesMap, phone);
+var btnSalvar = document.getElementById("rename-save");
+btnSalvar.textContent = "Salvando…";
+btnSalvar.disabled = true;
+var pedido;
+if (jaTemCliente) {
+// já existe linha em "clientes" pra esse telefone → atualiza o nome
+pedido = fetch(cfg.url + "/rest/v1/clientes?phone=eq." + encodeURIComponent(phone), {
+method: "PATCH",
+headers: Object.assign({ Prefer: "return=minimal" }, headers()),
+body: JSON.stringify({ name: nome })
+});
+} else {
+// cliente só apareceu em conversas_bot ainda → cria a linha em "clientes"
+pedido = fetch(cfg.url + "/rest/v1/clientes", {
+method: "POST",
+headers: Object.assign({ Prefer: "return=minimal" }, headers()),
+body: JSON.stringify({ phone: phone, name: nome, debt: 0, tickets: 0, diamantes: 0 })
+});
+}
+pedido.then(function (r) {
+if (!r.ok) return r.json().then(function (j) { throw new Error(j.message || ("HTTP " + r.status)); });
+clientesMap[phone] = nome;
+btnSalvar.textContent = "Salvar";
+btnSalvar.disabled = false;
+fecharRename();
+renderLista();
+if (currentPhone === phone) {
+document.getElementById("chat-name").textContent = nome;
+}
+}).catch(function (err) {
+btnSalvar.textContent = "Salvar";
+btnSalvar.disabled = false;
+renameError.textContent = "Não consegui salvar: " + err.message;
+renameError.style.display = "block";
+});
+};
+// ---------- telas ----------
+var screenList = document.getElementById("screen-list");
+var screenChat = document.getElementById("screen-chat");
+function irParaChat() { screenChat.classList.add("visible"); }
+function voltarParaLista() { screenChat.classList.remove("visible"); currentPhone = null; }
+
+document.getElementById("chat-back").onclick = voltarParaLista;
+// ---------- estados da lista ----------
+var loadingState = document.getElementById("loading-state");
+var errorState = document.getElementById("error-state");
+var emptyState = document.getElementById("empty-state");
+var clientListEl = document.getElementById("client-list");
+var errorMsgEl = document.getElementById("error-msg");
+function mostrarEstado(nome) {
+loadingState.style.display = nome === "loading" ? "flex" : "none";
+errorState.style.display = nome === "error" ? "flex" : "none";
+emptyState.style.display = nome === "empty" ? "flex" : "none";
+clientListEl.style.display = nome === "list" ? "block" : "none";
+}
+// ---------- rótulo das mídias: (foto), (pdf), (áudio)... ----------
+function rotuloMidia(mime, conteudo) {
+var t = String(mime || "").toLowerCase();
+if (t.indexOf("pdf") !== -1) return "(pdf)";
+if (t.indexOf("image") === 0) return "(foto)";
+if (t.indexOf("audio") === 0) return "(áudio)";
+if (t.indexOf("video") === 0) return "(vídeo)";
+if (t) return "(arquivo)";
+// mensagens antigas (sem mídia salva) que guardaram só o texto lido do comprovante
+if (/^Comprovante Pix/i.test(String(conteudo || ""))) return "(comprovante)";
+return "";
+}
+// Texto mostrado no balão / na lista: mídia do cliente aparece só como (foto), (pdf)...
+// No áudio, o rótulo vem acompanhado da transcrição.
+function textoExibido(m) {
+var r = m.role === "user" ? rotuloMidia(m.midia_mime, m.conteudo) : "";
+if (!r) return m.conteudo || "";
+if (r === "(áudio)" && m.conteudo && m.conteudo !== r) return r + "\n" + m.conteudo;
+return r;
+}
+// ---------- carregar clientes (agrupando conversas_bot por phone) ----------
+function carregarClientes() {
+mostrarEstado("loading");
+// O Supabase devolve no máximo 1000 linhas por pedido (mesmo com limit maior),
+// então a lista é montada em páginas de 1000 até acabar as mensagens.
+var urlLista = cfg.url + "/rest/v1/conversas_bot?";
+var TAM_PAGINA = 1000;
+var MAX_PAGINAS = 40; // segurança: até 40.000 mensagens
+var colunas = "phone,role,conteudo,created_at,midia_mime";
+var todas = [];
+function buscarPagina(pagina) {
+var qs = "select=" + colunas + "&order=created_at.desc&limit=" + TAM_PAGINA + "&offset=" + (pagina * TAM_PAGINA);
+return fetch(urlLista + qs, { headers: headers() }).then(function (r) {
+// sem a coluna midia_mime, repete a busca sem ela
+if (!r.ok && pagina === 0 && colunas.indexOf("midia_mime") !== -1) {
+colunas = "phone,role,conteudo,created_at";
+return buscarPagina(0);
+}
+if (!r.ok) return r.json().then(function (j) { throw new Error(j.message || ("HTTP " + r.status)); });
+return r.json().then(function (rows) {
+todas = todas.concat(rows);
+if (rows.length === TAM_PAGINA && pagina + 1 < MAX_PAGINAS) return buscarPagina(pagina + 1);
+});
+});
+}
+buscarPagina(0)
+.then(function () {
+var rows = todas;
+groupsByPhone = {};
+rows.forEach(function (m) {
+if (!groupsByPhone[m.phone]) {
+groupsByPhone[m.phone] = {
+lastTime: m.created_at,
+lastRole: m.role,
+lastMsg: textoExibido(m),
+count: 0
+};
+}
+groupsByPhone[m.phone].count++;
+});
+return carregarNomesClientes();
+})
+.then(renderLista)
+.catch(function (err) {
+errorMsgEl.textContent = err.message || "Erro desconhecido.";
+mostrarEstado("error");
+});
+}
+function carregarNomesClientes() {
+// Busca nome + ia_ativa; se a coluna ainda não existir, repete só com nome (a lista não quebra).
+function busca(cols) { return fetch(cfg.url + "/rest/v1/clientes?select=" + cols, { headers: headers() }); }
+return busca("phone,name,ia_ativa")
+.then(function (r) { return r.ok ? r : busca("phone,name"); })
+.then(function (r) { return r.ok ? r.json() : []; })
+.then(function (rows) {
+clientesMap = {}; iaMap = {};
+(rows || []).forEach(function (c) { clientesMap[c.phone] = c.name; if (c.ia_ativa === false) iaMap[c.phone] = false; });
+})
+.catch(function () { clientesMap = {}; iaMap = {}; });
+}
+function renderLista() {
+var phones = Object.keys(groupsByPhone);
+if (phones.length === 0) { mostrarEstado("empty"); return; }
+phones.sort(function (a, b) {
+return new Date(groupsByPhone[b].lastTime) - new Date(groupsByPhone[a].lastTime);
+});
+var termo = document.getElementById("search-input").value.trim().toLowerCase();
+var html = "";
+phones.forEach(function (phone) {
+var nome = clientesMap[phone] || formatarTelefone(phone);
+if (termo && nome.toLowerCase().indexOf(termo) === -1 && phone.indexOf(termo) === -1) return;
+var g = groupsByPhone[phone];
+var iaOn = iaMap[phone] !== false;
+if ((filtroIA === "on" && !iaOn) || (filtroIA === "off" && iaOn)) return;
+html += ''
++ '<div class="client-row" data-phone="' + phone + '">'
++   '<div class="client-avatar"></div>'
++   '<div class="client-mid">'
++     '<div class="client-top-line">'
++       '<div class="client-name">' + escapeHtml(nome) + '</div>'
++       '<div class="client-time">' + listaLabel(g.lastTime) + '</div>'
++     '</div>'
++     '<div class="client-preview">'
++       previewHtml(g)
++     '</div>'
++   '</div>'
++   '<button class="edit-pencil" data-phone="' + phone + '" title="Editar contato">'
++     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>'
++   '</button>'
++   '<div class="ia-badge ' + (iaOn ? 'on' : 'off') + '">IA ' + (iaOn ? 'ON' : 'OFF') + '</div>'
++   '<div class="client-count">' + g.count + '</div>'
++ '</div>';
+});
+clientListEl.innerHTML = html;
+mostrarEstado("list");
+Array.prototype.forEach.call(document.querySelectorAll(".client-row"), function (row) {
+row.onclick = function () { abrirChat(row.getAttribute("data-phone")); };
+});
+Array.prototype.forEach.call(document.querySelectorAll(".client-list .edit-pencil, #client-list .edit-pencil"), function (btn) {
+btn.onclick = function (e) {
+e.stopPropagation();
+abrirRename(btn.getAttribute("data-phone"));
+};
+});
+}
+document.getElementById("search-input").oninput = function () {
+if (clientListEl.style.display !== "none") renderLista();
+};
+document.getElementById("btn-refresh").onclick = function (e) {
+e.currentTarget.classList.add("spin");
+setTimeout(function () { e.currentTarget.classList.remove("spin"); }, 600);
+carregarClientes();
+};
+// ---------- chat de um cliente ----------
+var messagesEl = document.getElementById("messages");
+function abrirChat(phone) {
+currentPhone = phone;
+var nome = clientesMap[phone] || formatarTelefone(phone);
+document.getElementById("chat-name").textContent = nome;
+document.getElementById("chat-sub").textContent = formatarTelefone(phone);
+pintarIA();
+irParaChat();
+carregarMensagens(phone);
+}
+document.getElementById("btn-refresh-chat").onclick = function () {
+if (currentPhone) carregarMensagens(currentPhone);
+};
+function carregarMensagens(phone) {
+messagesEl.innerHTML = '<div style="display:flex;justify-content:center;padding:30px;"><div class="spinner"></div></div>';
+var qsComMidia = "phone=eq." + encodeURIComponent(phone) + "&select=role,conteudo,created_at,midia_base64,midia_mime&order=created_at.asc&limit=2000";
+var qsSemMidia = "phone=eq." + encodeURIComponent(phone) + "&select=role,conteudo,created_at&order=created_at.asc&limit=2000";
+fetch(cfg.url + "/rest/v1/conversas_bot?" + qsComMidia, { headers: headers() })
+.then(function (r) {
+// Se as colunas midia_base64/midia_mime ainda não existirem na tabela,
+// repete a busca sem elas em vez de quebrar a tela toda.
+if (!r.ok) return fetch(cfg.url + "/rest/v1/conversas_bot?" + qsSemMidia, { headers: headers() });
+return r;
+})
+.then(function (r) {
+if (!r.ok) return r.json().then(function (j) { throw new Error(j.message || ("HTTP " + r.status)); });
+return r.json();
+})
+.then(function (m) { renderMensagens(m); atualizarJanela(m); })
+.catch(function (err) {
+messagesEl.innerHTML = '<div style="padding:30px;text-align:center;color:#8696A0;font-size:13px;">Erro ao carregar: ' + escapeHtml(err.message) + '</div>';
+});
+}
+function renderMensagens(msgs) {
+if (!msgs || msgs.length === 0) {
+messagesEl.innerHTML = '<div style="padding:30px;text-align:center;color:#8696A0;font-size:13px;">Nenhuma mensagem encontrada.</div>';
+return;
+}
+var html = "", diaAtual = null, papelAnterior = null;
+msgs.forEach(function (m) {
+var label = dataLabel(m.created_at);
+var novoDia = label !== diaAtual;
+if (novoDia) {
+html += '<div class="date-pill"><span>' + label + '</span></div>';
+diaAtual = label;
+}
+var role = m.role === "user" ? "user" : "assistant";
+var primeira = novoDia || role !== papelAnterior;
+papelAnterior = role;
+var texto = textoExibido(m);
+var midiaHtml = "", tipo = "";
+if (m.midia_base64 && m.midia_mime) {
+var mime = String(m.midia_mime).split(";")[0].trim();
+var src = "data:" + mime + ";base64," + m.midia_base64;
+if (mime.indexOf("audio") === 0) {
+tipo = "audio";
+midiaHtml = '<audio class="bubble-audio" controls preload="none" src="' + src + '"></audio>';
+} else if (mime.indexOf("pdf") !== -1) {
+tipo = "pdf";
+midiaHtml = '<a class="bubble-pdf" href="' + src + '" target="_blank" rel="noopener">'
++ '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
++ '<span>Documento PDF</span></a>';
+} else {
+tipo = "img";
+midiaHtml = '<img class="bubble-img" src="' + src + '" alt="mídia enviada">';
+}
+// como no WhatsApp: foto/PDF sem legenda não mostram o rótulo "(foto)" / "(pdf)"
+if (tipo !== "audio" && texto === rotuloMidia(m.midia_mime, m.conteudo)) texto = "";
+}
+var tempo = '<span class="bubble-time">' + horaCurta(m.created_at) + (role === "assistant" ? TICK : "") + '</span>';
+var corpo = (tipo === "img" && !texto)
+? '<div class="media-wrap">' + midiaHtml + tempo + '</div>'
+: midiaHtml + '<div class="bubble-text">' + escapeHtml(texto) + tempo + '</div>';
+html += '<div class="msg-row ' + role + (primeira ? ' first' : '') + '">'
++   '<div class="bubble ' + role + ((tipo === "img" || tipo === "pdf") ? ' media' : '') + '">' + corpo + '</div>'
++ '</div>';
+});
+messagesEl.innerHTML = html;
+messagesEl.scrollTop = messagesEl.scrollHeight;
+Array.prototype.forEach.call(messagesEl.querySelectorAll(".bubble-img"), function (img) {
+img.onclick = function () {
+document.getElementById("lightbox-img").src = img.src;
+document.getElementById("lightbox").classList.add("open");
+};
+});
+}
+document.getElementById("lightbox").onclick = function () {
+this.classList.remove("open");
+};
+
+// ---------- envio: janela de 24h, texto e modelos ----------
+var JANELA_MS = 24 * 3600 * 1000, janelaAberta = false, janelaTimer = null, ultimaMsgCliente = null, enviando = false;
+var msgInput = document.getElementById("msg-input"), btnSend = document.getElementById("btn-send");
+var winBar = document.getElementById("window-bar"), winText = document.getElementById("window-text");
+var toastEl = document.getElementById("toast"), toastT = null;
+function toast(t, erro) {
+toastEl.textContent = t; toastEl.className = "show" + (erro ? " err" : "");
+clearTimeout(toastT); toastT = setTimeout(function () { toastEl.className = ""; }, 3500);
+}
+function restanteTxt(ms) {
+var m = Math.max(0, Math.floor(ms / 60000)), h = Math.floor(m / 60);
+return h + "h" + String(m % 60).padStart(2, "0") + "min";
+}
+function pintarJanela() {
+var resta = ultimaMsgCliente ? JANELA_MS - (Date.now() - ultimaMsgCliente) : 0;
+janelaAberta = resta > 0;
+winBar.className = janelaAberta ? "open" : "closed";
+winText.textContent = janelaAberta ? "Janela de 24h aberta — fecha em " + restanteTxt(resta) : "Janela de 24h fechada — só é possível enviar modelo aprovado";
+msgInput.disabled = !janelaAberta;
+msgInput.placeholder = janelaAberta ? "Mensagem" : "Use “Enviar modelo” para falar com o cliente";
+btnSend.disabled = !janelaAberta || enviando;
+}
+function atualizarJanela(msgs) {
+ultimaMsgCliente = null;
+(msgs || []).forEach(function (m) { if (m.role === "user") ultimaMsgCliente = new Date(m.created_at).getTime(); });
+pintarJanela();
+clearInterval(janelaTimer); janelaTimer = setInterval(pintarJanela, 30000);
+}
+function chamarFuncao(corpo) {
+if (!cfg.fnUrl || !cfg.adminKey) { abrirConfig(); return Promise.reject(new Error("Preencha a URL da função e a chave do painel.")); }
+return fetch(cfg.fnUrl, { method: "POST", headers: { "Content-Type": "application/json", "x-admin-key": cfg.adminKey }, body: JSON.stringify(corpo) })
+.then(function (r) { return r.json().catch(function () { return { ok: false, erro: "HTTP " + r.status }; }); });
+}
+msgInput.oninput = function () { this.style.height = "auto"; this.style.height = Math.min(this.scrollHeight, 120) + "px"; };
+function enviarTexto() {
+var texto = msgInput.value.trim();
+if (!texto || !currentPhone || !janelaAberta || enviando) return;
+enviando = true; btnSend.disabled = true;
+chamarFuncao({ acao: "enviar_texto", phone: currentPhone, texto: texto }).then(function (j) {
+if (j.ok) { msgInput.value = ""; msgInput.style.height = "auto"; carregarMensagens(currentPhone); }
+else if (j.janelaFechada) { ultimaMsgCliente = null; pintarJanela(); toast("A janela de 24h já fechou. Envie um modelo.", true); abrirTemplates(); }
+else toast("Não enviou: " + (j.erro || "erro desconhecido"), true);
+}).catch(function (e) { toast(e.message, true); }).then(function () { enviando = false; pintarJanela(); });
+}
+btnSend.onclick = enviarTexto;
+msgInput.onkeydown = function (e) { if (e.key === "Enter" && !e.shiftKey && window.innerWidth >= 900) { e.preventDefault(); enviarTexto(); } };
+// modelos
+var tplOverlay = document.getElementById("tpl-overlay"), tplSelect = document.getElementById("tpl-select");
+var tplVars = document.getElementById("tpl-vars"), tplPreview = document.getElementById("tpl-preview"), tplError = document.getElementById("tpl-error");
+var templates = null, tplAtual = null;
+function tplErro(t) { tplError.textContent = t || ""; tplError.style.display = t ? "block" : "none"; }
+function renderTplPreview() {
+if (!tplAtual) { tplPreview.textContent = "—"; return; }
+var vals = Array.prototype.map.call(tplVars.querySelectorAll("input"), function (i) { return i.value; });
+tplPreview.textContent = tplAtual.texto.replace(/\{\{(\d+)\}\}/g, function (m, n) {
+var i = tplAtual.vars.indexOf(Number(n)); return (vals[i] || "").trim() || m;
+});
+}
+function escolherTemplate() {
+tplAtual = templates ? templates[tplSelect.value] : null;
+tplVars.innerHTML = "";
+if (tplAtual) {
+var primeiro = ((clientesMap[currentPhone] || "").trim().split(/\s+/)[0]) || "";
+tplAtual.vars.forEach(function (n, i) {
+var inp = document.createElement("input");
+inp.className = "cfg-input"; inp.placeholder = "Valor da variável {{" + n + "}}";
+if (i === 0 && primeiro) inp.value = primeiro;
+inp.oninput = renderTplPreview; tplVars.appendChild(inp);
+});
+}
+renderTplPreview();
+}
+tplSelect.onchange = escolherTemplate;
+function popularTemplates() {
+tplSelect.innerHTML = "";
+if (!templates.length) { tplSelect.innerHTML = "<option>Nenhum modelo aprovado encontrado</option>"; tplAtual = null; renderTplPreview(); return; }
+templates.forEach(function (t, i) {
+var o = document.createElement("option");
+o.value = i; o.textContent = t.name + " · " + t.language + (t.suportado ? "" : " (não suportado)"); o.disabled = !t.suportado;
+tplSelect.appendChild(o);
+});
+var livre = templates.findIndex(function (t) { return t.suportado; });
+tplSelect.value = livre < 0 ? 0 : livre; escolherTemplate();
+}
+function abrirTemplates() {
+if (!currentPhone) return;
+tplErro(""); tplOverlay.classList.add("open");
+if (templates) { popularTemplates(); return; }
+tplSelect.innerHTML = "<option>Carregando modelos…</option>";
+chamarFuncao({ acao: "listar_templates" }).then(function (j) {
+if (!j.ok) { tplErro(j.erro || "Não consegui listar os modelos."); return; }
+templates = j.templates || []; popularTemplates();
+}).catch(function (e) { tplErro(e.message); });
+}
+document.getElementById("btn-templates").onclick = abrirTemplates;
+document.getElementById("tpl-cancel").onclick = function () { tplOverlay.classList.remove("open"); };
+document.getElementById("tpl-send").onclick = function () {
+if (!tplAtual || enviando) return;
+var params = Array.prototype.map.call(tplVars.querySelectorAll("input"), function (i) { return i.value.trim(); });
+if (params.some(function (p) { return !p; })) { tplErro("Preencha todas as variáveis."); return; }
+tplErro(""); enviando = true;
+var btn = document.getElementById("tpl-send"); btn.disabled = true; btn.textContent = "Enviando…";
+chamarFuncao({ acao: "enviar_template", phone: currentPhone, template: tplAtual.name, idioma: tplAtual.language, params: params, textoRenderizado: tplPreview.textContent }).then(function (j) {
+if (j.ok) { tplOverlay.classList.remove("open"); toast("Modelo enviado ✔"); carregarMensagens(currentPhone); }
+else tplErro(j.erro || "Não enviou.");
+}).catch(function (e) { tplErro(e.message); }).then(function () { enviando = false; btn.disabled = false; btn.textContent = "Enviar"; pintarJanela(); });
+};
+
+// ---------- IA liga/desliga por cliente (coluna clientes.ia_ativa) ----------
+Array.prototype.forEach.call(document.querySelectorAll("#ia-filter button"), function (b) {
+b.onclick = function () {
+filtroIA = b.getAttribute("data-f");
+Array.prototype.forEach.call(document.querySelectorAll("#ia-filter button"), function (x) { x.classList.toggle("on", x === b); });
+renderLista();
+};
+});
+var btnIA = document.getElementById("btn-ia");
+function pintarIA() {
+var on = currentPhone ? iaMap[currentPhone] !== false : true;
+btnIA.className = on ? "on" : "off";
+btnIA.textContent = on ? "IA ligada" : "IA desligada";
+}
+btnIA.onclick = function () {
+var phone = currentPhone;
+if (!phone) return;
+if (!Object.prototype.hasOwnProperty.call(clientesMap, phone)) { toast("Cadastre o nome do cliente (lápis) antes de controlar a IA.", true); return; }
+var novo = iaMap[phone] === false;
+btnIA.disabled = true;
+fetch(cfg.url + "/rest/v1/clientes?phone=eq." + encodeURIComponent(phone), { method: "PATCH", headers: Object.assign({ Prefer: "return=minimal" }, headers()), body: JSON.stringify({ ia_ativa: novo }) })
+.then(function (r) { if (!r.ok) throw new Error("coluna ia_ativa não existe ou sem permissão"); if (novo) delete iaMap[phone]; else iaMap[phone] = false; pintarIA(); renderLista(); toast(novo ? "IA ligada para este cliente" : "IA desligada para este cliente"); })
+.catch(function (e) { toast("Não salvou: " + e.message, true); })
+.then(function () { btnIA.disabled = false; });
+};
+// ---------- boot ----------
+carregarConfig();
+carregarClientes();
+})();
+</script>
+</body>
+</html>
